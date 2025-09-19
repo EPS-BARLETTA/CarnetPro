@@ -1,0 +1,34 @@
+<!DOCTYPE html><html lang="fr"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>CarnetPro — Partager</title>
+<link rel="stylesheet" href="style.css"></head><body>
+<div class="container">
+  <div class="header"><div class="h1">Partager mes données</div><a class="button" href="index.html">Accueil</a></div>
+  <div class="grid" style="grid-template-columns:1fr 1fr">
+    <div class="card">
+      <div class="h1">QR — dernière séance</div>
+      <div class="qr-wrap">
+        <div id="qrBox" class="qr-box"><div id="qrcode"></div></div>
+        <div class="row">
+          <button id="contrast" class="button">Contraste 🌙/☀️</button>
+          <button id="full" class="button">Plein écran</button>
+          <button id="png" class="button">Télécharger PNG</button>
+        </div>
+        <div class="sub">Le QR encode un objet JSON <code>scanprof.v1</code>.</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="h1">Export CSV / JSON</div>
+      <div class="row">
+        <button id="csv-last" class="button">CSV — dernière séance</button>
+        <button id="csv-all" class="button">CSV — tout</button>
+        <button id="json-all" class="button">JSON — tout</button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- Essaie de charger le QR depuis le dépôt public CarnetEntrainementEPS -->
+<script src="/CarnetEntrainementEPS/qrcode.min.js"></script>
+<script type="module" src="assets/js/qr.js"></script>
+<script type="module" src="assets/js/csv.js"></script>
+</body></html>

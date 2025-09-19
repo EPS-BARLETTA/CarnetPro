@@ -1,0 +1,23 @@
+<!DOCTYPE html><html lang="fr"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>CarnetPro — Séance</title>
+<link rel="stylesheet" href="style.css"></head><body>
+<div class="container">
+  <div class="header">
+    <div><div class="h1">Nouvelle séance</div><div class="sub">Choisis une activité puis saisis</div></div>
+    <a class="button" href="index.html">Accueil</a>
+  </div>
+  <div class="card grid" id="activities" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))"></div>
+  <div class="card" id="form" style="display:none">
+    <div class="h1" id="actTitle">Séance</div>
+    <div id="fields" class="grid" style="margin-top:10px"></div>
+    <hr/>
+    <div><div class="label">Notes libres</div><textarea id="notes" class="input" placeholder="Ressenti, objectifs, points à améliorer..."></textarea></div>
+    <div class="row" style="margin-top:12px">
+      <button id="save" class="button ok">Enregistrer</button>
+      <a id="share" class="button primary" href="export.html">Partager</a>
+    </div>
+  </div>
+</div>
+<script type="module" src="assets/js/app.js"></script>
+</body></html>

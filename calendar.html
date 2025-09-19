@@ -1,0 +1,44 @@
+<!DOCTYPE html><html lang="fr"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>CarnetPro — Calendrier</title>
+<link rel="stylesheet" href="style.css"></head><body>
+<div class="container">
+  <div class="header">
+    <div><div class="h1">Calendrier</div><div class="sub">Pastilles = jours avec séance</div></div>
+    <div class="row">
+      <button id="prev" class="button">◀</button>
+      <div id="mo" class="badge">—</div>
+      <button id="next" class="button">▶</button>
+      <a class="button" href="index.html">Accueil</a>
+    </div>
+  </div>
+  <div id="calendar" class="card"></div>
+  <div id="list" class="card" style="margin-top:12px"></div>
+</div>
+<script type="module">
+import {store,keys} from './assets/js/storage.js';
+const cal = document.getElementById('calendar'); const list = document.getElementById('list');
+const mo = document.getElementById('mo'); const prev=document.getElementById('prev'); const next=document.getElementById('next');
+let cur = new Date(); cur.setDate(1);
+prev.onclick=()=>{cur.setMonth(cur.getMonth()-1);render()}; next.onclick=()=>{cur.setMonth(cur.getMonth()+1);render()};
+function render(){
+  mo.textContent = cur.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+  const y=cur.getFullYear(), m=cur.getMonth(); const first=(new Date(y,m,1).getDay()||7); const days=new Date(y,m+1,0).getDate();
+  const seances = store.get(keys.seances,[]); const byDate={}; seances.forEach(s=>{ const d=(s.seance?.date||'').slice(0,10); (byDate[d]=byDate[d]||[]).push(s); });
+  const grid = document.createElement('div'); grid.className='calendar';
+  ['L','M','M','J','V','S','D'].forEach(h=>{ const hd=document.createElement('div'); hd.className='day'; hd.style.background='transparent'; hd.style.border='none'; hd.textContent=h; grid.appendChild(hd); });
+  for(let i=0;i<(first===1?0:first-1);i++){ const d=document.createElement('div'); d.className='day'; d.style.visibility='hidden'; grid.appendChild(d); }
+  for(let d=1; d<=days; d++){ const dateStr=new Date(y,m,d).toISOString().slice(0,10); const cell=document.createElement('div'); cell.className='day'; const top=document.createElement('div'); top.className='d'; top.textContent=d; cell.appendChild(top);
+    if(byDate[dateStr]?.length){ const dot=document.createElement('span'); dot.className='badge-dot'; dot.title=byDate[dateStr].length+' séance(s)'; cell.appendChild(dot); cell.style.cursor='pointer'; cell.onclick=()=>show(dateStr,byDate[dateStr]); }
+    grid.appendChild(cell); }
+  cal.innerHTML=''; cal.appendChild(grid); list.innerHTML='<div class="sub">Sélectionne un jour.</div>';
+}
+function show(dateStr, arr){
+  list.innerHTML = arr.map(s=>{
+    const act=s.seance?.activite||'—', notes=(s.seance?.notes||'').replace(/</g,'&lt;');
+    return `<div class="card" style="margin:6px 0"><div class="row"><strong>${act}</strong><span class="badge">${dateStr}</span></div><div class="sub">${notes}</div></div>`;
+  }).join('');
+}
+render();
+</script>
+</body></html>
