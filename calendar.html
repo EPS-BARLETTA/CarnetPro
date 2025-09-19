@@ -1,7 +1,7 @@
 <!DOCTYPE html><html lang="fr"><head>
 <meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>CarnetPro — Calendrier</title>
-<link rel="stylesheet" href="style.css"></head><body>
+<link rel="stylesheet" href="assets/css/style.css"></head><body>
 <div class="container">
   <div class="header">
     <div><div class="h1">Calendrier</div><div class="sub">Pastilles = jours avec séance</div></div>
@@ -16,7 +16,7 @@
   <div id="list" class="card" style="margin-top:12px"></div>
 </div>
 <script type="module">
-import {store,keys} from './storage.js';
+import {store,keys} from './assets/js/storage.js';
 const cal = document.getElementById('calendar'); const list = document.getElementById('list');
 const mo = document.getElementById('mo'); const prev=document.getElementById('prev'); const next=document.getElementById('next');
 let cur = new Date(); cur.setDate(1);
