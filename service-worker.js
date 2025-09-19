@@ -1,10 +1,22 @@
+
 self.addEventListener('install', (e)=>{
-  e.waitUntil(caches.open('carnetpro-v1').then(cache=>cache.addAll([
-    '/', '/index.html', '/style.css',
-    '/identite.html','/seance.html','/calendar.html','/analyses.html','/export.html','/aide.html',
-    '/assets/js/app.js','/assets/js/storage.js','/assets/js/schema.js','/assets/js/ui.js','/assets/js/csv.js','/assets/js/qr.js','/assets/js/charts.js'
+  e.waitUntil(caches.open('carnetpro-v2').then(cache=>cache.addAll([
+    '/CarnetPro/index.html',
+    '/CarnetPro/style.css',
+    '/CarnetPro/identite.html',
+    '/CarnetPro/seance.html',
+    '/CarnetPro/calendar.html',
+    '/CarnetPro/analyses.html',
+    '/CarnetPro/export.html',
+    '/CarnetPro/app.js',
+    '/CarnetPro/storage.js',
+    '/CarnetPro/schema.js',
+    '/CarnetPro/ui.js',
+    '/CarnetPro/csv.js',
+    '/CarnetPro/qr.js',
+    '/CarnetPro/charts.js'
   ])));
 });
-self.addEventListener('fetch', (e)=>{
+self.addEventListener('fetch',(e)=>{
   e.respondWith(caches.match(e.request).then(r=> r || fetch(e.request)));
 });
