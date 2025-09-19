@@ -1,0 +1,33 @@
+<!DOCTYPE html><html lang="fr"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>CarnetPro — Identité</title>
+<link rel="stylesheet" href="style.css"></head><body>
+<div class="container">
+  <div class="header"><div class="h1">Mon identité</div><a class="button" href="index.html">Accueil</a></div>
+  <div class="card grid" style="grid-template-columns:1fr 1fr">
+    <div><div class="label">Nom</div><input id="nom" class="input" placeholder="DURAND"></div>
+    <div><div class="label">Prénom</div><input id="prenom" class="input" placeholder="Lina"></div>
+    <div><div class="label">Classe</div><input id="classe" class="input" placeholder="T1"></div>
+    <div><div class="label">Sexe</div>
+      <select id="sexe" class="input"><option value="">—</option><option value="F">F</option><option value="M">M</option><option value="Autre">Autre</option></select>
+    </div>
+  </div>
+  <div class="row" style="margin-top:12px">
+    <span id="status" class="badge">⏳ En attente</span>
+    <a id="next" class="button primary" href="seance.html">Continuer → Séance</a>
+    <button id="reset" class="button danger">Réinitialiser</button>
+  </div>
+</div>
+<script type="module">
+import {store,keys} from './storage.js';
+const $ = s=>document.querySelector(s);
+const inputs=['nom','prenom','classe','sexe'].map(id=>$('#'+id));
+const status=$('#status'); const reset=$('#reset');
+const saved=store.get(keys.eleve,{}); inputs.forEach(i=>{ if(saved[i.id]!==undefined) i.value=saved[i.id]; });
+render();
+inputs.forEach(i=> i.addEventListener('input', ()=>{ store.set(keys.eleve, Object.fromEntries(inputs.map(x=>[x.id,x.value.trim()])) ); render(); }));
+reset.addEventListener('click', ()=>{ store.remove(keys.eleve); store.remove(keys.derniereSeance); store.remove(keys.seances); inputs.forEach(i=>i.value=''); render(); alert('Données effacées'); });
+function ok(){ const e=store.get(keys.eleve,{}); return e.nom&&e.prenom&&e.classe&&e.sexe; }
+function render(){ status.textContent = ok()?'✅ Enregistré':'⏳ En attente'; }
+</script>
+</body></html>
