@@ -47,6 +47,7 @@ nav a{cursor:pointer}
       <a class="button primary" data-page="seance">Séance</a>
       <a class="button" data-page="calendar">Calendrier</a>
       <a class="button" data-page="export">Partager</a>
+      <a class="button" href="reset.html" title="Nettoyer le cache/service worker">Reset</a>
     </nav>
   </div>
 
@@ -124,7 +125,7 @@ nav a{cursor:pointer}
 </div>
 
 <script>
-// storage helpers
+// --- storage helpers ---
 function gpGet(key, fallback=null){ try{ const v = localStorage.getItem(key); return v? JSON.parse(v): fallback; }catch(e){ return fallback; } }
 function gpSet(key, value){ localStorage.setItem(key, JSON.stringify(value)); }
 function gpRemove(key){ localStorage.removeItem(key); }
@@ -134,7 +135,7 @@ function makeSeance(eleve, activite, champs={}, notes=''){
 }
 function flattenSeance(s){ const base={Nom:s.eleve?.nom||'','Prénom':s.eleve?.prenom||'',Classe:s.eleve?.classe||'',Sexe:s.eleve?.sexe||'',Activité:s.seance?.activite||'',Date:s.seance?.date||'',Notes:s.seance?.notes||''}; for(const [k,v] of Object.entries(s.seance?.champs||{})) base[k]=v; return base; }
 
-// simple router
+// --- simple router ---
 const sections = {
   home: document.getElementById('page-home'),
   identite: document.getElementById('page-identite'),
@@ -145,11 +146,12 @@ const sections = {
 function show(name){
   Object.values(sections).forEach(s=> s.style.display='none');
   sections[name].style.display='block';
+  window.scrollTo(0,0);
 }
 document.querySelectorAll('[data-page]').forEach(el=> el.addEventListener('click', (e)=>{ e.preventDefault(); show(el.getAttribute('data-page')); }));
 show('home');
 
-// identité
+// --- identité ---
 const inputsIds=['nom','prenom','classe','sexe'];
 const statusEl = document.getElementById('status');
 const saved=gpGet(GP_KEYS.eleve,{});
@@ -157,7 +159,7 @@ inputsIds.forEach(id=>{ const el=document.getElementById(id); if(!el) return; if
 if(statusEl){ const e=gpGet(GP_KEYS.eleve,{}); statusEl.textContent = (e.nom&&e.prenom&&e.classe&&e.sexe)? '✅ Enregistré' : '⏳ En attente'; }
 document.getElementById('reset')?.addEventListener('click', ()=>{ gpRemove(GP_KEYS.eleve); gpRemove(GP_KEYS.derniereSeance); gpRemove(GP_KEYS.seances); inputsIds.forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; }); if(statusEl) statusEl.textContent='⏳ En attente'; alert('Données effacées'); });
 
-// séance
+// --- séance ---
 function h(tag, attrs={}, children=[]){ const el=document.createElement(tag); Object.entries(attrs||{}).forEach(([k,v])=>{ if(k==='class') el.className=v; else if(k.startsWith('on')&&typeof v==='function') el.addEventListener(k.slice(2), v); else el.setAttribute(k,v); }); (Array.isArray(children)?children:[children]).forEach(c=>{ if(c==null) return; if(typeof c==='string') el.insertAdjacentHTML('beforeend', c); else el.appendChild(c); }); return el; }
 const activitiesEl = document.getElementById('activities');
 const form = document.getElementById('form');
@@ -207,28 +209,30 @@ function checkIdentite(){ const e=gpGet(GP_KEYS.eleve,null); if(!e||!e.nom||!e.p
 function openForm(act){ if(!checkIdentite()) return; actTitle.textContent=act.id; fields.innerHTML=''; act.fields.forEach(f=>{ const wrap=h('div',{},[h('div',{class:'label'},f.label)]); const input=h('input',{class:'input', id:f.k, type:f.type||'text'}); if(f.step) input.step=f.step; if(f.min) input.min=f.min; if(f.max) input.max=f.max; if(f.type==='date' && !input.value) input.valueAsDate=new Date(); wrap.appendChild(input); fields.appendChild(wrap); }); notes.value=''; form.style.display='block'; window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'}); }
 btnSave?.addEventListener('click', ()=>{ const title=actTitle.textContent||''; if(!title) return alert('Choisis une activité.'); const act=ACTIVITES.find(a=>a.id===title); if(!act) return alert('Choisis une activité.'); const champs={}; act.fields.forEach(f=>{ const el=document.getElementById(f.k); if(!el) return; const v=el.value; if(v!==''&&v!==undefined) champs[f.k] = (f.type==='number'? Number(v):v); }); const s=makeSeance(gpGet(GP_KEYS.eleve,{}), title, champs, (document.getElementById('notes').value||'')); gpSet(GP_KEYS.derniereSeance, s); const all=gpGet(GP_KEYS.seances,[]); all.push(s); gpSet(GP_KEYS.seances, all); alert('✅ Séance enregistrée.'); });
 
-// calendar
+// --- calendar ---
 const cal=document.getElementById('calendar'); const list=document.getElementById('list'); const mo=document.getElementById('mo');
 let cur=new Date(); cur.setDate(1);
-document.getElementById('prev').onclick=()=>{cur.setMonth(cur.getMonth()-1);renderCal();}; document.getElementById('next').onclick=()=>{cur.setMonth(cur.getMonth()+1);renderCal();};
+document.getElementById('prev')?.addEventListener('click', ()=>{cur.setMonth(cur.getMonth()-1);renderCal();});
+document.getElementById('next')?.addEventListener('click', ()=>{cur.setMonth(cur.getMonth()+1);renderCal();});
 function renderCal(){ if(!cal) return; mo.textContent=cur.toLocaleDateString('fr-FR',{month:'long',year:'numeric'}); const y=cur.getFullYear(), m=cur.getMonth(); const first=(new Date(y,m,1).getDay()||7); const days=new Date(y,m+1,0).getDate(); const seances=gpGet(GP_KEYS.seances,[]); const byDate={}; seances.forEach(s=>{ const d=(s.seance?.date||'').slice(0,10); (byDate[d]=byDate[d]||[]).push(s); }); const grid=document.createElement('div'); grid.className='calendar'; ['L','M','M','J','V','S','D'].forEach(h=>{ const hd=document.createElement('div'); hd.className='day'; hd.style.background='transparent'; hd.style.border='none'; hd.textContent=h; grid.appendChild(hd); }); for(let i=0;i<(first===1?0:first-1);i++){ const d=document.createElement('div'); d.className='day'; d.style.visibility='hidden'; grid.appendChild(d); } for(let d=1; d<=days; d++){ const dateStr=new Date(y,m,d).toISOString().slice(0,10); const cell=document.createElement('div'); cell.className='day'; const top=document.createElement('div'); top.className='d'; top.textContent=d; cell.appendChild(top); if(byDate[dateStr]?.length){ const dot=document.createElement('span'); dot.className='badge-dot'; dot.title=byDate[dateStr].length+' séance(s)'; cell.appendChild(dot); cell.style.cursor='pointer'; cell.onclick=()=>showList(dateStr,byDate[dateStr]); } grid.appendChild(cell); } cal.innerHTML=''; cal.appendChild(grid); list.innerHTML='<div class="sub">Sélectionne un jour.</div>'; }
-function showList(dateStr, arr){ list.innerHTML = arr.map(s=>{ const act=s.seance?.activite||'—', notes=(s.seance?.notes||'').replace(/</g,'&lt;'); return `<div class="card" style="margin:6px 0"><div class="row"><strong>${act}</strong><span class="badge">${dateStr}</span></div><div class="sub">${notes}</div></div>`; }).join(''); }
+function showList(dateStr, arr){ if(!list) return; list.innerHTML = arr.map(s=>{ const act=s.seance?.activite||'—', notes=(s.seance?.notes||'').replace(/</g,'&lt;'); return `<div class="card" style="margin:6px 0"><div class="row"><strong>${act}</strong><span class="badge">${dateStr}</span></div><div class="sub">${notes}</div></div>`; }).join(''); }
 renderCal();
 
-// export
-function toCSVRow(obj){ const headers = Object.keys(obj); const row = headers.map(h=>{ const v = String(obj[h]??''); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }).join(','); return headers.join(',')+'\n'+row; }
+// --- export ---
+function toCSVRow(obj){ const headers = Object.keys(obj); const row = headers.map(h=>{ const v = String(obj[h]??''); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }).join(','); return headers.join(',')+'\\n'+row; }
 function download(name, text, mime='text/plain'){ const blob=new Blob([text],{type:mime+';charset=utf-8;'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=name; a.click(); URL.revokeObjectURL(url); }
-document.getElementById('contrast').addEventListener('click',()=> document.body.classList.toggle('contrast-dark'));
-document.getElementById('png').addEventListener('click',()=>{ const c=document.querySelector('#qrcode canvas'); if(!c) return alert('QR non disponible.'); const a=document.createElement('a'); a.download='qr.png'; a.href=c.toDataURL('image/png'); a.click(); });
-document.getElementById('csv-last').addEventListener('click',()=>{ const s=gpGet(GP_KEYS.derniereSeance,null); if(!s) return alert('Aucune séance.'); const flat=flattenSeance(s); download('seance.csv', toCSVRow(flat), 'text/csv'); });
-document.getElementById('csv-all').addEventListener('click',()=>{ const arr=gpGet(GP_KEYS.seances,[]).map(flattenSeance); if(!arr.length) return alert('Aucune séance.'); const headers=[...new Set(arr.flatMap(o=>Object.keys(o)))]; const rows=arr.map(o=> headers.map(h=>{ const v=String(o[h]??''); return /[",\n]/.test(v)? '"'+v.replace(/"/g,'""')+'"' : v; }).join(',')).join('\n'); download('seances.csv', headers.join(',')+'\n'+rows, 'text/csv'); });
-document.getElementById('json-all').addEventListener('click',()=> download('seances.json', JSON.stringify(gpGet(GP_KEYS.seances,[]), null, 2), 'application/json'));
+document.getElementById('contrast')?.addEventListener('click',()=> document.body.classList.toggle('contrast-dark'));
+document.getElementById('png')?.addEventListener('click',()=>{ const c=document.querySelector('#qrcode canvas'); if(!c) return alert('QR non disponible.'); const a=document.createElement('a'); a.download='qr.png'; a.href=c.toDataURL('image/png'); a.click(); });
+document.getElementById('csv-last')?.addEventListener('click',()=>{ const s=gpGet(GP_KEYS.derniereSeance,null); if(!s) return alert('Aucune séance.'); const flat=flattenSeance(s); download('seance.csv', toCSVRow(flat), 'text/csv'); });
+document.getElementById('csv-all')?.addEventListener('click',()=>{ const arr=gpGet(GP_KEYS.seances,[]).map(flattenSeance); if(!arr.length) return alert('Aucune séance.'); const headers=[...new Set(arr.flatMap(o=>Object.keys(o)))]; const rows=arr.map(o=> headers.map(h=>{ const v=String(o[h]??''); return /[",\\n]/.test(v)? '"'+v.replace(/"/g,'""')+'"' : v; }).join(',')).join('\\n'); download('seances.csv', headers.join(',')+'\\n'+rows, 'text/csv'); });
+document.getElementById('json-all')?.addEventListener('click',()=> download('seances.json', JSON.stringify(gpGet(GP_KEYS.seances,[]), null, 2), 'application/json'));
 
-// QR
+// --- QR ---
 function makeMiniQR(text){ const pre=document.createElement('pre'); pre.textContent=text; return pre; }
 function renderQR(){
   const last = gpGet(GP_KEYS.derniereSeance,null);
-  const box = document.getElementById('qrcode'); box.innerHTML='';
+  const box = document.getElementById('qrcode'); if(!box) return;
+  box.innerHTML='';
   if(!last){ box.innerHTML='<div class="sub">Aucune séance enregistrée.</div>'; return; }
   if(window.QRCode){ new window.QRCode(box,{text: JSON.stringify(last), width:320, height:320, correctLevel: window.QRCode.CorrectLevel.M}); }
   else { box.appendChild(makeMiniQR(JSON.stringify(last))); }
