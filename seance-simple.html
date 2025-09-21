@@ -1,0 +1,52 @@
+<!doctype html><html lang="fr"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CarnetPro — Séance (simple)</title>
+<style>
+:root{--border:#e5e7eb;--ink:#0b1324;--blue:#2563eb;--green:#16a34a}
+body{font-family:system-ui;margin:0;background:#f8fafc;color:var(--ink)}
+.main{max-width:980px;margin:0 auto;padding:16px}
+.h1{font-size:24px;font-weight:800}
+.grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin:12px 0}
+.tile{padding:12px;border:1px solid var(--border);border-radius:12px;background:#fff;cursor:pointer}
+.tile:hover{outline:2px solid #c7d2fe}
+.card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px;margin-top:12px}
+.label{font-size:12px;color:#475569;margin-bottom:6px}
+.input{width:100%;padding:10px;border:1px solid var(--border);border-radius:10px}
+.btn{padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:#fff;font-weight:700;cursor:pointer}
+.btn.ok{background:var(--green);border-color:var(--green);color:#fff}
+</style>
+<div class="main">
+  <div class="h1">Séance (simple)</div>
+  <div id="tiles" class="grid"></div>
+  <div id="form" class="card" style="display:none">
+    <div class="h1" id="actTitle">Séance</div>
+    <div id="fields" class="grid" style="grid-template-columns:1fr 1fr"></div>
+    <div class="label">Notes libres</div>
+    <textarea id="notes" class="input" placeholder="Ressenti, objectifs..."></textarea>
+    <div style="margin-top:10px"><button id="save" class="btn ok">Enregistrer</button></div>
+  </div>
+</div>
+<script>
+function gpGet(k,f=null){ try{const v=localStorage.getItem(k);return v?JSON.parse(v):f}catch(e){return f} }
+function gpSet(k,v){ localStorage.setItem(k,JSON.stringify(v)) }
+const KEYS={eleve:'eleve',seances:'seances',der:'derniereSeance'};
+function make(eleve,act,champs,notes){return {app:'CarnetPro',version:'1.0',eleve, seance:{date:champs.date||new Date().toISOString().slice(0,10), activite:act, champs, notes}};}
+
+const ACTIV=[
+  {id:'Demi-fond', f:[{k:'date',t:'date',l:'Date'},{k:'duree_min',t:'number',l:'Durée (min)'},{k:'distance_km',t:'number',l:'Distance (km)'},{k:'allure_sec_km',t:'number',l:'Allure (sec/km)'},{k:'rpe',t:'number',l:'RPE (1-10)'}]},
+  {id:'Natation', f:[{k:'date',t:'date',l:'Date'},{k:'nage',t:'text',l:'Nage'},{k:'distance_m',t:'number',l:'Distance (m)'},{k:'temps_sec',t:'number',l:'Temps (sec)'},{k:'rpe',t:'number',l:'RPE (1-10)'}]},
+  {id:'Escalade', f:[{k:'date',t:'date',l:'Date'},{k:'type',t:'text',l:'Voie/Bloc'},{k:'hauteur_m',t:'number',l:'Hauteur (m)'},{k:'cotation',t:'text',l:'Cotation'},{k:'essais',t:'number',l:'Essais'},{k:'rpe',t:'number',l:'RPE (1-10)'}]},
+  {id:'Danse', f:[{k:'date',t:'date',l:'Date'},{k:'style',t:'text',l:'Style'},{k:'duree_min',t:'number',l:'Durée (min)'},{k:'intensite',t:'number',l:'Intensité (1-10)'}]},
+  {id:'Football', f:[{k:'date',t:'date',l:'Date'},{k:'poste',t:'text',l:'Poste'},{k:'temps_jeu_min',t:'number',l:'Temps de jeu (min)'},{k:'intensite',t:'number',l:'Intensité (1-10)'}]},
+  {id:'Volleyball', f:[{k:'date',t:'date',l:'Date'},{k:'poste',t:'text',l:'Poste'},{k:'temps_jeu_min',t:'number',l:'Temps de jeu (min)'},{k:'intensite',t:'number',l:'Intensité (1-10)'}]},
+  {id:'Basketball', f:[{k:'date',t:'date',l:'Date'},{k:'poste',t:'text',l:'Poste'},{k:'temps_jeu_min',t:'number',l:'Temps de jeu (min)'},{k:'intensite',t:'number',l:'Intensité (1-10)'}]},
+  {id:'Handball', f:[{k:'date',t:'date',l:'Date'},{k:'poste',t:'text',l:'Poste'},{k:'temps_jeu_min',t:'number',l:'Temps de jeu (min)'},{k:'intensite',t:'number',l:'Intensité (1-10)'}]},
+  {id:'Badminton', f:[{k:'date',t:'date',l:'Date'},{k:'format',t:'text',l:'Format'},{k:'sets',t:'number',l:'Sets'},{k:'intensite',t:'number',l:'Intensité (1-10)'}]},
+  {id:'Musculation step', f:[{k:'date',t:'date',l:'Date'},{k:'exercice',t:'text',l:'Exercice'},{k:'series',t:'number',l:'Séries'},{k:'reps',t:'number',l:'Répétitions'},{k:'charge_kg',t:'number',l:'Charge (kg)'},{k:'rpe',t:'number',l:'RPE (1-10)'}]}
+];
+const tiles=document.getElementById('tiles'), form=document.getElementById('form'), fields=document.getElementById('fields'), actTitle=document.getElementById('actTitle'), notes=document.getElementById('notes');
+let current=null;
+ACTIV.forEach(a=>{ const b=document.createElement('button'); b.className='tile'; b.type='button'; b.textContent=a.id; b.onclick=()=>openForm(a); tiles.appendChild(b); });
+function openForm(a){ current=a; actTitle.textContent=a.id; fields.innerHTML=''; a.f.forEach(f=>{ const wrap=document.createElement('div'); wrap.className=''; const lab=document.createElement('div'); lab.className='label'; lab.textContent=f.l; const input=document.createElement('input'); input.className='input'; input.type=f.t; input.id=f.k; if(f.t==='date'&&!input.value) input.valueAsDate=new Date(); wrap.appendChild(lab); wrap.appendChild(input); fields.appendChild(wrap); }); notes.value=''; form.style.display='block'; window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'}); }
+document.getElementById('save').onclick=()=>{ if(!current) return alert('Choisis une activité.'); const e=gpGet(KEYS.eleve,null); if(!e||!e.nom||!e.prenom||!e.classe||!e.sexe) return alert("Complète d'abord l'identité (Nom, Prénom, Classe, Sexe) sur la page / (index.html)."); const champs={}; current.f.forEach(f=>{ const el=document.getElementById(f.k); if(!el) return; const v=el.value; if(v!==''&&v!==undefined) champs[f.k] = (f.t==='number'? Number(v):v); }); const s=make(e, current.id, champs, notes.value||''); gpSet(KEYS.der, s); const all=gpGet(KEYS.seances,[]); all.push(s); gpSet(KEYS.seances, all); alert('✅ Séance enregistrée.'); };
+</script>
