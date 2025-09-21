@@ -1,13 +1,47 @@
 <!DOCTYPE html><html lang="fr"><head>
 <meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>CarnetPro — Séance (Hotfix)</title>
-<link rel="stylesheet" href="style.css"></head><body>
+<title>CarnetPro — Séance</title>
+<style>
+:root{
+  --ink:#0b1324;--muted:#475569;--border:#e5e7eb;--card:#ffffff;--blue:#2563eb;--green:#16a34a;--red:#dc2626;--amber:#f59e0b;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif;background:#f8fafc;color:var(--ink)}
+.container{max-width:1100px;margin:0 auto;padding:16px}
+.header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:8px 0 16px}
+.h1{font-size:clamp(22px,4vw,30px);font-weight:800}
+.sub{color:var(--muted)}
+.grid{display:grid;gap:12px}
+.tiles{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+.tile{display:flex;flex-direction:column;gap:6px;padding:16px;border:1px solid var(--border);border-radius:16px;background:#fff;text-decoration:none;color:inherit}
+.tile:hover{outline:2px solid #c7d2fe}
+.tile .name{font-weight:800}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px}
+.button{appearance:none;border:1px solid var(--border);background:#fff;padding:12px 16px;border-radius:12px;cursor:pointer;font-weight:700;text-decoration:none;color:inherit}
+.button.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+.button.ok{background:var(--green);border-color:var(--green);color:#fff}
+.button.warn{background:var(--amber);border-color:var(--amber);color:#111}
+.button.danger{background:var(--red);border-color:var(--red);color:#fff}
+.input{width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:12px}
+textarea.input{min-height:96px}
+.label{font-size:12px;color:var(--muted);margin-bottom:6px}
+.footer{margin-top:18px;color:var(--muted);text-align:center}
+hr{border:0;border-top:1px solid var(--border);margin:16px 0}
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;border:1px solid var(--border);border-radius:999px;padding:6px 10px;background:#fff}
+.calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+.day{border:1px solid var(--border);background:#fff;border-radius:12px;min-height:90px;padding:6px}
+.day .d{font-weight:700}
+.badge-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#2563eb}
+.qr-wrap{display:flex;flex-direction:column;align-items:center;gap:12px}
+.qr-box{padding:12px;border-radius:16px;border:1px dashed var(--border);background:#fff}
+.contrast-dark .qr-box{filter:invert(1)}
+</style></head><body>
 <div class="container">
   <div class="header">
     <div><div class="h1">Nouvelle séance</div><div class="sub">Choisis une activité puis saisis</div></div>
     <a class="button" href="index.html">Accueil</a>
   </div>
-  <div id="msg" class="card" style="display:none"></div>
   <div class="card grid" id="activities" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))"></div>
   <div class="card" id="form" style="display:none">
     <div class="h1" id="actTitle">Séance</div>
@@ -20,15 +54,65 @@
     </div>
   </div>
 </div>
-<script type="module">
-const msg = document.getElementById('msg');
-function info(t){ msg.style.display='block'; msg.innerHTML = '<div class="sub">'+t+'</div>'; }
-try {
-  const m = await import('./app.js');
-  info('✅ Modules chargés.');
-} catch(e){
-  info('❌ Impossible de charger app.js — vérifie que <code>app.js</code> existe à la racine. Détail: '+(e?.message||e)+')');
-  console.error(e);
+<script>
+
+function gpGet(key, fallback=null){ try{ const v = localStorage.getItem(key); return v? JSON.parse(v): fallback; }catch(e){ return fallback; } }
+function gpSet(key, value){ localStorage.setItem(key, JSON.stringify(value)); }
+function gpRemove(key){ localStorage.removeItem(key); }
+const GP_KEYS = { eleve:'eleve', seances:'seances', derniereSeance:'derniereSeance' };
+function makeSeance(eleve, activite, champs={}, notes=''){
+  return { app:'CarnetPro', version:'1.0', eleve, seance:{ date: champs.date || new Date().toISOString().slice(0,10), activite, champs, notes } };
 }
+
+function h(tag, attrs={}, children=[]){ const el=document.createElement(tag); Object.entries(attrs||{}).forEach(([k,v])=>{ if(k==='class') el.className=v; else if(k.startsWith('on')&&typeof v==='function') el.addEventListener(k.slice(2), v); else el.setAttribute(k,v); }); (Array.isArray(children)?children:[children]).forEach(c=>{ if(c==null) return; if(typeof c==='string') el.insertAdjacentHTML('beforeend', c); else el.appendChild(c); }); return el; }
+const activitiesEl = document.getElementById('activities');
+const form = document.getElementById('form');
+const fields = document.getElementById('fields');
+const actTitle = document.getElementById('actTitle');
+const notes = document.getElementById('notes');
+const btnSave = document.getElementById('save');
+const eleve = gpGet(GP_KEYS.eleve,null);
+if(!eleve || !eleve.nom || !eleve.prenom || !eleve.classe || !eleve.sexe){ alert('Renseigne ton identité d\'abord.'); location.href='identite.html'; }
+const ACTIVITES = [
+  {id:'Course', fields:[
+    {k:'date', label:'Date', type:'date'},
+    {k:'duree_min', label:'Durée (min)', type:'number', step:'1'},
+    {k:'distance_km', label:'Distance (km)', type:'number', step:'0.01'},
+    {k:'allure_sec_km', label:'Allure (sec/km)', type:'number', step:'1'},
+    {k:'rpe', label:'RPE (1-10)', type:'number', min:'1', max:'10', step:'1'}
+  ]},
+  {id:'Musculation', fields:[
+    {k:'date', label:'Date', type:'date'},
+    {k:'exercice', label:'Exercice', type:'text'},
+    {k:'series', label:'Séries', type:'number', step:'1'},
+    {k:'reps', label:'Répétitions', type:'number', step:'1'},
+    {k:'charge_kg', label:'Charge (kg)', type:'number', step:'0.5'},
+    {k:'rpe', label:'RPE (1-10)', type:'number', min:'1', max:'10', step:'1'}
+  ]},
+  {id:'Natation', fields:[
+    {k:'date', label:'Date', type:'date'},
+    {k:'nage', label:'Nage', type:'text'},
+    {k:'distance_m', label:'Distance (m)', type:'number', step:'1'},
+    {k:'temps_sec', label:'Temps (sec)', type:'number', step:'1'},
+    {k:'rpe', label:'RPE (1-10)', type:'number', min:'1', max:'10', step:'1'}
+  ]},
+  {id:'Sports collectifs', fields:[
+    {k:'date', label:'Date', type:'date'},
+    {k:'sport', label:'Sport', type:'text'},
+    {k:'role', label:'Rôle', type:'text'},
+    {k:'temps_jeu_min', label:'Temps de jeu (min)', type:'number', step:'1'},
+    {k:'intensite', label:'Intensité (1-10)', type:'number', min:'1', max:'10', step:'1'}
+  ]},
+  {id:'Autre', fields:[
+    {k:'date', label:'Date', type:'date'},
+    {k:'intitule', label:'Intitulé', type:'text'},
+    {k:'duree_min', label:'Durée (min)', type:'number', step:'1'},
+    {k:'details', label:'Détails', type:'text'}
+  ]}
+];
+ACTIVITES.forEach(a=>{ const tile=h('button',{class:'tile',type:'button',onClick:()=>openForm(a)},[h('div',{class:'name'},a.id), h('div',{class:'sub'},'Saisir une séance')]); activitiesEl.appendChild(tile); });
+let current=null;
+function openForm(act){ current=act; actTitle.textContent=act.id; fields.innerHTML=''; act.fields.forEach(f=>{ const wrap=h('div',{},[h('div',{class:'label'},f.label)]); const input=h('input',{class:'input',id:f.k,type:f.type||'text'}); if(f.step) input.step=f.step; if(f.min) input.min=f.min; if(f.max) input.max=f.max; if(f.type==='date'&&!input.value) input.valueAsDate=new Date(); wrap.appendChild(input); fields.appendChild(wrap); }); notes.value=''; form.style.display='block'; window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'}); }
+btnSave.addEventListener('click',()=>{ if(!current) return alert('Choisis une activité.'); const champs={}; current.fields.forEach(f=>{ const el=document.getElementById(f.k); if(!el) return; const v=el.value; if(v!==''&&v!==undefined) champs[f.k] = (f.type==='number'? Number(v):v); }); const s=makeSeance(eleve,current.id,champs,notes.value||''); gpSet(GP_KEYS.derniereSeance,s); const all=gpGet(GP_KEYS.seances,[]); all.push(s); gpSet(GP_KEYS.seances,all); alert('✅ Séance enregistrée.'); });
 </script>
 </body></html>

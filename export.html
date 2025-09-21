@@ -1,7 +1,42 @@
 <!DOCTYPE html><html lang="fr"><head>
 <meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>CarnetPro — Partager</title>
-<link rel="stylesheet" href="style.css"></head><body>
+<style>
+:root{
+  --ink:#0b1324;--muted:#475569;--border:#e5e7eb;--card:#ffffff;--blue:#2563eb;--green:#16a34a;--red:#dc2626;--amber:#f59e0b;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif;background:#f8fafc;color:var(--ink)}
+.container{max-width:1100px;margin:0 auto;padding:16px}
+.header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:8px 0 16px}
+.h1{font-size:clamp(22px,4vw,30px);font-weight:800}
+.sub{color:var(--muted)}
+.grid{display:grid;gap:12px}
+.tiles{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+.tile{display:flex;flex-direction:column;gap:6px;padding:16px;border:1px solid var(--border);border-radius:16px;background:#fff;text-decoration:none;color:inherit}
+.tile:hover{outline:2px solid #c7d2fe}
+.tile .name{font-weight:800}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px}
+.button{appearance:none;border:1px solid var(--border);background:#fff;padding:12px 16px;border-radius:12px;cursor:pointer;font-weight:700;text-decoration:none;color:inherit}
+.button.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+.button.ok{background:var(--green);border-color:var(--green);color:#fff}
+.button.warn{background:var(--amber);border-color:var(--amber);color:#111}
+.button.danger{background:var(--red);border-color:var(--red);color:#fff}
+.input{width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:12px}
+textarea.input{min-height:96px}
+.label{font-size:12px;color:var(--muted);margin-bottom:6px}
+.footer{margin-top:18px;color:var(--muted);text-align:center}
+hr{border:0;border-top:1px solid var(--border);margin:16px 0}
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;border:1px solid var(--border);border-radius:999px;padding:6px 10px;background:#fff}
+.calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+.day{border:1px solid var(--border);background:#fff;border-radius:12px;min-height:90px;padding:6px}
+.day .d{font-weight:700}
+.badge-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#2563eb}
+.qr-wrap{display:flex;flex-direction:column;align-items:center;gap:12px}
+.qr-box{padding:12px;border-radius:16px;border:1px dashed var(--border);background:#fff}
+.contrast-dark .qr-box{filter:invert(1)}
+</style></head><body>
 <div class="container">
   <div class="header"><div class="h1">Partager mes données</div><a class="button" href="index.html">Accueil</a></div>
   <div class="grid" style="grid-template-columns:1fr 1fr">
@@ -27,8 +62,25 @@
     </div>
   </div>
 </div>
-<!-- QR lib via CDN -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" crossorigin="anonymous"></script>
-<script type="module" src="qr.js"></script>
-<script type="module" src="csv.js"></script>
+<script>
+
+function gpGet(key, fallback=null){ try{ const v = localStorage.getItem(key); return v? JSON.parse(v): fallback; }catch(e){ return fallback; } }
+function gpSet(key, value){ localStorage.setItem(key, JSON.stringify(value)); }
+function gpRemove(key){ localStorage.removeItem(key); }
+const GP_KEYS = { eleve:'eleve', seances:'seances', derniereSeance:'derniereSeance' };
+function makeSeance(eleve, activite, champs={}, notes=''){
+  return { app:'CarnetPro', version:'1.0', eleve, seance:{ date: champs.date || new Date().toISOString().slice(0,10), activite, champs, notes } };
+}
+
+function flattenSeance(s){ const base={Nom:s.eleve?.nom||'', 'Prénom':s.eleve?.prenom||'', Classe:s.eleve?.classe||'', Sexe:s.eleve?.sexe||'', Activité:s.seance?.activite||'', Date:s.seance?.date||'', Notes:s.seance?.notes||''}; for(const [k,v] of Object.entries(s.seance?.champs||{})) base[k]=v; return base; }
+const dl=(name,text,mime='text/plain')=>{ const blob=new Blob([text],{type:mime+';charset=utf-8;'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=name; a.click(); URL.revokeObjectURL(url); };
+const last=gpGet(GP_KEYS.derniereSeance,null); const qrBox=document.getElementById('qrBox'); if(!last){ qrBox.innerHTML='<div class="sub">Aucune séance enregistrée.</div>'; } else { try{ const el=document.getElementById('qrcode'); el.innerHTML=''; const data=JSON.stringify(last); const qr=new window.QRCode(el,{text:data,width:320,height:320,correctLevel: window.QRCode.CorrectLevel.M}); window.__qrCanvas=el.querySelector('canvas'); }catch(e){ qrBox.innerHTML='<div class="sub">QR indisponible. Vérifie la connexion CDN.</div>'; } }
+document.getElementById('contrast').addEventListener('click',()=> document.body.classList.toggle('contrast-dark'));
+document.getElementById('full').addEventListener('click',()=>{ const b=document.getElementById('qrBox'); if(b.requestFullscreen) b.requestFullscreen(); });
+document.getElementById('png').addEventListener('click',()=>{ const c=window.__qrCanvas; if(!c) return alert('QR non disponible.'); const a=document.createElement('a'); a.download='qr.png'; a.href=c.toDataURL('image/png'); a.click(); });
+document.getElementById('csv-last').addEventListener('click',()=>{ const s=gpGet(GP_KEYS.derniereSeance,null); if(!s) return alert('Aucune séance.'); const flat=flattenSeance(s); const headers=Object.keys(flat); const row=headers.map(h=>{ const v=String(flat[h]??''); return /[",\n]/.test(v)? '"'+v.replace(/"/g,'""')+'"' : v; }).join(','); dl('seance.csv', headers.join(',')+'\n'+row, 'text/csv'); });
+document.getElementById('csv-all').addEventListener('click',()=>{ const arr=gpGet(GP_KEYS.seances,[]).map(flattenSeance); if(!arr.length) return alert('Aucune séance.'); const headers=[...new Set(arr.flatMap(o=>Object.keys(o)))]; const rows=arr.map(o=> headers.map(h=>{ const v=String(o[h]??''); return /[",\n]/.test(v)? '"'+v.replace(/"/g,'""')+'"' : v; }).join(',')).join('\n'); dl('seances.csv', headers.join(',')+'\n'+rows, 'text/csv'); });
+document.getElementById('json-all').addEventListener('click',()=> dl('seances.json', JSON.stringify(gpGet(GP_KEYS.seances,[]), null, 2), 'application/json'));
+</script>
 </body></html>

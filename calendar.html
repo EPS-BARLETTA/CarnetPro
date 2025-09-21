@@ -1,7 +1,42 @@
 <!DOCTYPE html><html lang="fr"><head>
 <meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>CarnetPro — Calendrier</title>
-<link rel="stylesheet" href="style.css"></head><body>
+<style>
+:root{
+  --ink:#0b1324;--muted:#475569;--border:#e5e7eb;--card:#ffffff;--blue:#2563eb;--green:#16a34a;--red:#dc2626;--amber:#f59e0b;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif;background:#f8fafc;color:var(--ink)}
+.container{max-width:1100px;margin:0 auto;padding:16px}
+.header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:8px 0 16px}
+.h1{font-size:clamp(22px,4vw,30px);font-weight:800}
+.sub{color:var(--muted)}
+.grid{display:grid;gap:12px}
+.tiles{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+.tile{display:flex;flex-direction:column;gap:6px;padding:16px;border:1px solid var(--border);border-radius:16px;background:#fff;text-decoration:none;color:inherit}
+.tile:hover{outline:2px solid #c7d2fe}
+.tile .name{font-weight:800}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px}
+.button{appearance:none;border:1px solid var(--border);background:#fff;padding:12px 16px;border-radius:12px;cursor:pointer;font-weight:700;text-decoration:none;color:inherit}
+.button.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+.button.ok{background:var(--green);border-color:var(--green);color:#fff}
+.button.warn{background:var(--amber);border-color:var(--amber);color:#111}
+.button.danger{background:var(--red);border-color:var(--red);color:#fff}
+.input{width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:12px}
+textarea.input{min-height:96px}
+.label{font-size:12px;color:var(--muted);margin-bottom:6px}
+.footer{margin-top:18px;color:var(--muted);text-align:center}
+hr{border:0;border-top:1px solid var(--border);margin:16px 0}
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;border:1px solid var(--border);border-radius:999px;padding:6px 10px;background:#fff}
+.calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+.day{border:1px solid var(--border);background:#fff;border-radius:12px;min-height:90px;padding:6px}
+.day .d{font-weight:700}
+.badge-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#2563eb}
+.qr-wrap{display:flex;flex-direction:column;align-items:center;gap:12px}
+.qr-box{padding:12px;border-radius:16px;border:1px dashed var(--border);background:#fff}
+.contrast-dark .qr-box{filter:invert(1)}
+</style></head><body>
 <div class="container">
   <div class="header">
     <div><div class="h1">Calendrier</div><div class="sub">Pastilles = jours avec séance</div></div>
@@ -15,30 +50,21 @@
   <div id="calendar" class="card"></div>
   <div id="list" class="card" style="margin-top:12px"></div>
 </div>
-<script type="module">
-import {store,keys} from './storage.js';
-const cal = document.getElementById('calendar'); const list = document.getElementById('list');
-const mo = document.getElementById('mo'); const prev=document.getElementById('prev'); const next=document.getElementById('next');
-let cur = new Date(); cur.setDate(1);
-prev.onclick=()=>{cur.setMonth(cur.getMonth()-1);render()}; next.onclick=()=>{cur.setMonth(cur.getMonth()+1);render()};
-function render(){
-  mo.textContent = cur.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
-  const y=cur.getFullYear(), m=cur.getMonth(); const first=(new Date(y,m,1).getDay()||7); const days=new Date(y,m+1,0).getDate();
-  const seances = store.get(keys.seances,[]); const byDate={}; seances.forEach(s=>{ const d=(s.seance?.date||'').slice(0,10); (byDate[d]=byDate[d]||[]).push(s); });
-  const grid = document.createElement('div'); grid.className='calendar';
-  ['L','M','M','J','V','S','D'].forEach(h=>{ const hd=document.createElement('div'); hd.className='day'; hd.style.background='transparent'; hd.style.border='none'; hd.textContent=h; grid.appendChild(hd); });
-  for(let i=0;i<(first===1?0:first-1);i++){ const d=document.createElement('div'); d.className='day'; d.style.visibility='hidden'; grid.appendChild(d); }
-  for(let d=1; d<=days; d++){ const dateStr=new Date(y,m,d).toISOString().slice(0,10); const cell=document.createElement('div'); cell.className='day'; const top=document.createElement('div'); top.className='d'; top.textContent=d; cell.appendChild(top);
-    if(byDate[dateStr]?.length){ const dot=document.createElement('span'); dot.className='badge-dot'; dot.title=byDate[dateStr].length+' séance(s)'; cell.appendChild(dot); cell.style.cursor='pointer'; cell.onclick=()=>show(dateStr,byDate[dateStr]); }
-    grid.appendChild(cell); }
-  cal.innerHTML=''; cal.appendChild(grid); list.innerHTML='<div class="sub">Sélectionne un jour.</div>';
+<script>
+
+function gpGet(key, fallback=null){ try{ const v = localStorage.getItem(key); return v? JSON.parse(v): fallback; }catch(e){ return fallback; } }
+function gpSet(key, value){ localStorage.setItem(key, JSON.stringify(value)); }
+function gpRemove(key){ localStorage.removeItem(key); }
+const GP_KEYS = { eleve:'eleve', seances:'seances', derniereSeance:'derniereSeance' };
+function makeSeance(eleve, activite, champs={}, notes=''){
+  return { app:'CarnetPro', version:'1.0', eleve, seance:{ date: champs.date || new Date().toISOString().slice(0,10), activite, champs, notes } };
 }
-function show(dateStr, arr){
-  list.innerHTML = arr.map(s=>{
-    const act=s.seance?.activite||'—', notes=(s.seance?.notes||'').replace(/</g,'&lt;');
-    return `<div class="card" style="margin:6px 0"><div class="row"><strong>${act}</strong><span class="badge">${dateStr}</span></div><div class="sub">${notes}</div></div>`;
-  }).join('');
-}
+
+const cal=document.getElementById('calendar'); const list=document.getElementById('list'); const mo=document.getElementById('mo');
+let cur=new Date(); cur.setDate(1);
+document.getElementById('prev').onclick=()=>{cur.setMonth(cur.getMonth()-1);render();}; document.getElementById('next').onclick=()=>{cur.setMonth(cur.getMonth()+1);render();};
+function render(){ mo.textContent=cur.toLocaleDateString('fr-FR',{month:'long',year:'numeric'}); const y=cur.getFullYear(), m=cur.getMonth(); const first=(new Date(y,m,1).getDay()||7); const days=new Date(y,m+1,0).getDate(); const seances=gpGet(GP_KEYS.seances,[]); const byDate={}; seances.forEach(s=>{const d=(s.seance?.date||'').slice(0,10); (byDate[d]=byDate[d]||[]).push(s);}); const grid=document.createElement('div'); grid.className='calendar'; ['L','M','M','J','V','S','D'].forEach(h=>{const hd=document.createElement('div'); hd.className='day'; hd.style.background='transparent'; hd.style.border='none'; hd.textContent=h; grid.appendChild(hd);}); for(let i=0;i<(first===1?0:first-1);i++){const d=document.createElement('div'); d.className='day'; d.style.visibility='hidden'; grid.appendChild(d);} for(let d=1; d<=days; d++){const dateStr=new Date(y,m,d).toISOString().slice(0,10); const cell=document.createElement('div'); cell.className='day'; const top=document.createElement('div'); top.className='d'; top.textContent=d; cell.appendChild(top); if(byDate[dateStr]?.length){const dot=document.createElement('span'); dot.className='badge-dot'; dot.title=byDate[dateStr].length+' séance(s)'; cell.appendChild(dot); cell.style.cursor='pointer'; cell.onclick=()=>show(dateStr,byDate[dateStr]);} grid.appendChild(cell);} cal.innerHTML=''; cal.appendChild(grid); list.innerHTML='<div class="sub">Sélectionne un jour.</div>'; }
+function show(dateStr, arr){ list.innerHTML = arr.map(s=>{ const act=s.seance?.activite||'—', notes=(s.seance?.notes||'').replace(/</g,'&lt;'); return `<div class="card" style="margin:6px 0"><div class="row"><strong>${act}</strong><span class="badge">${dateStr}</span></div><div class="sub">${notes}</div></div>`; }).join(''); }
 render();
 </script>
 </body></html>
