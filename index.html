@@ -33,6 +33,8 @@ hr{border:0;border-top:1px solid var(--border);margin:16px 0}
 .qr-box{padding:12px;border-radius:16px;border:1px dashed var(--border);background:#fff}
 .contrast-dark .qr-box{filter:invert(1)}
 nav a{cursor:pointer}
+.alert{padding:10px 12px;border:1px solid #fbbf24;background:#fffbeb;border-radius:12px;margin-bottom:10px}
+small.hint{color:var(--muted);display:block;margin-top:4px}
 </style>
 </head><body>
 <div class="container">
@@ -47,12 +49,11 @@ nav a{cursor:pointer}
       <a class="button primary" data-page="seance">Séance</a>
       <a class="button" data-page="calendar">Calendrier</a>
       <a class="button" data-page="export">Partager</a>
-      <a class="button" href="reset.html" title="Nettoyer le cache/service worker">Reset</a>
     </nav>
   </div>
 
   <section id="page-home" class="grid tiles">
-    <div class="tile" data-page="seance"><div class="name">Saisir une séance</div><div class="sub">Course, Muscu, Natation, Sports co, Autre</div></div>
+    <div class="tile" data-page="seance"><div class="name">Saisir une séance</div><div class="sub">Demi-fond, Natation, Escalade, Danse, Football, Volleyball, Basketball, Handball, Badminton, Musculation step</div></div>
     <div class="tile" data-page="calendar"><div class="name">Calendrier</div><div class="sub">Voir par jour / exporter</div></div>
     <div class="tile" data-page="export"><div class="name">Partager</div><div class="sub">QR, CSV, JSON</div></div>
   </section>
@@ -74,6 +75,10 @@ nav a{cursor:pointer}
   </section>
 
   <section id="page-seance" style="display:none">
+    <div id="seance-guard" class="alert" style="display:none">
+      ⚠️ Renseigne d’abord ton identité (Nom, Prénom, Classe, Sexe) dans l’onglet <strong>Identité</strong>.
+      <small class="hint">Astuce : dès que tu tapes, c’est enregistré automatiquement.</small>
+    </div>
     <div class="card grid" id="activities" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))"></div>
     <div class="card" id="form" style="display:none">
       <div class="h1" id="actTitle">Séance</div>
@@ -147,6 +152,7 @@ function show(name){
   Object.values(sections).forEach(s=> s.style.display='none');
   sections[name].style.display='block';
   window.scrollTo(0,0);
+  if(name==='seance') guardSeance();
 }
 document.querySelectorAll('[data-page]').forEach(el=> el.addEventListener('click', (e)=>{ e.preventDefault(); show(el.getAttribute('data-page')); }));
 show('home');
@@ -155,9 +161,25 @@ show('home');
 const inputsIds=['nom','prenom','classe','sexe'];
 const statusEl = document.getElementById('status');
 const saved=gpGet(GP_KEYS.eleve,{});
-inputsIds.forEach(id=>{ const el=document.getElementById(id); if(!el) return; if(saved[id]!==undefined) el.value=saved[id]; el?.addEventListener('input', ()=>{ const curr=Object.fromEntries(inputsIds.map(x=>[x, (document.getElementById(x)||{}).value?.trim() || ''])); gpSet(GP_KEYS.eleve, curr); statusEl && (statusEl.textContent = (curr.nom&&curr.prenom&&curr.classe&&curr.sexe)? '✅ Enregistré' : '⏳ En attente');}); });
-if(statusEl){ const e=gpGet(GP_KEYS.eleve,{}); statusEl.textContent = (e.nom&&e.prenom&&e.classe&&e.sexe)? '✅ Enregistré' : '⏳ En attente'; }
-document.getElementById('reset')?.addEventListener('click', ()=>{ gpRemove(GP_KEYS.eleve); gpRemove(GP_KEYS.derniereSeance); gpRemove(GP_KEYS.seances); inputsIds.forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; }); if(statusEl) statusEl.textContent='⏳ En attente'; alert('Données effacées'); });
+function identityOk(){ const e=gpGet(GP_KEYS.eleve,{}); return e.nom&&e.prenom&&e.classe&&e.sexe; }
+inputsIds.forEach(id=>{ const el=document.getElementById(id); if(!el) return;
+  if(saved[id]!==undefined) el.value=saved[id];
+  el.addEventListener('input', ()=>{
+    const curr=Object.fromEntries(inputsIds.map(x=>[x, (document.getElementById(x)||{}).value?.trim() || '']));
+    gpSet(GP_KEYS.eleve, curr);
+    if(statusEl) statusEl.textContent = identityOk()? '✅ Enregistré' : '⏳ En attente';
+    guardSeance(); // <-- met à jour l'état du message dès qu'on tape
+  });
+});
+if(statusEl){ statusEl.textContent = identityOk()? '✅ Enregistré' : '⏳ En attente'; }
+
+document.getElementById('reset')?.addEventListener('click', ()=>{
+  gpRemove(GP_KEYS.eleve); gpRemove(GP_KEYS.derniereSeance); gpRemove(GP_KEYS.seances);
+  inputsIds.forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  if(statusEl) statusEl.textContent='⏳ En attente';
+  guardSeance();
+  alert('Données effacées');
+});
 
 // --- séance ---
 function h(tag, attrs={}, children=[]){ const el=document.createElement(tag); Object.entries(attrs||{}).forEach(([k,v])=>{ if(k==='class') el.className=v; else if(k.startsWith('on')&&typeof v==='function') el.addEventListener(k.slice(2), v); else el.setAttribute(k,v); }); (Array.isArray(children)?children:[children]).forEach(c=>{ if(c==null) return; if(typeof c==='string') el.insertAdjacentHTML('beforeend', c); else el.appendChild(c); }); return el; }
@@ -167,20 +189,20 @@ const fields = document.getElementById('fields');
 const actTitle = document.getElementById('actTitle');
 const notes = document.getElementById('notes');
 const btnSave = document.getElementById('save');
+const guard = document.getElementById('seance-guard');
+
+function guardSeance(){
+  const ok = identityOk();
+  guard.style.display = ok ? 'none' : 'block';
+  activitiesEl.style.opacity = ok ? '1' : '0.5';
+}
+
 const ACTIVITES = [
-  {id:'Course', fields:[
+  {id:'Demi-fond', fields:[
     {k:'date', label:'Date', type:'date'},
     {k:'duree_min', label:'Durée (min)', type:'number', step:'1'},
     {k:'distance_km', label:'Distance (km)', type:'number', step:'0.01'},
     {k:'allure_sec_km', label:'Allure (sec/km)', type:'number', step:'1'},
-    {k:'rpe', label:'RPE (1-10)', type:'number', min:'1', max:'10', step:'1'}
-  ]},
-  {id:'Musculation', fields:[
-    {k:'date', label:'Date', type:'date'},
-    {k:'exercice', label:'Exercice', type:'text'},
-    {k:'series', label:'Séries', type:'number', step:'1'},
-    {k:'reps', label:'Répétitions', type:'number', step:'1'},
-    {k:'charge_kg', label:'Charge (kg)', type:'number', step:'0.5'},
     {k:'rpe', label:'RPE (1-10)', type:'number', min:'1', max:'10', step:'1'}
   ]},
   {id:'Natation', fields:[
@@ -190,28 +212,94 @@ const ACTIVITES = [
     {k:'temps_sec', label:'Temps (sec)', type:'number', step:'1'},
     {k:'rpe', label:'RPE (1-10)', type:'number', min:'1', max:'10', step:'1'}
   ]},
-  {id:'Sports collectifs', fields:[
+  {id:'Escalade', fields:[
     {k:'date', label:'Date', type:'date'},
-    {k:'sport', label:'Sport', type:'text'},
-    {k:'role', label:'Rôle', type:'text'},
+    {k:'type', label:'Voie/Bloc', type:'text'},
+    {k:'hauteur_m', label:'Hauteur (m)', type:'number', step:'0.5'},
+    {k:'cotation', label:'Cotation', type:'text'},
+    {k:'essais', label:'Essais', type:'number', step:'1'},
+    {k:'rpe', label:'RPE (1-10)', type:'number', min:'1', max:'10', step:'1'}
+  ]},
+  {id:'Danse', fields:[
+    {k:'date', label:'Date', type:'date'},
+    {k:'style', label:'Style', type:'text'},
+    {k:'duree_min', label:'Durée (min)', type:'number', step:'1'},
+    {k:'intensite', label:'Intensité (1-10)', type:'number', min:'1', max:'10', step:'1'}
+  ]},
+  {id:'Football', fields:[
+    {k:'date', label:'Date', type:'date'},
+    {k:'poste', label:'Poste', type:'text'},
     {k:'temps_jeu_min', label:'Temps de jeu (min)', type:'number', step:'1'},
     {k:'intensite', label:'Intensité (1-10)', type:'number', min:'1', max:'10', step:'1'}
   ]},
-  {id:'Autre', fields:[
+  {id:'Volleyball', fields:[
     {k:'date', label:'Date', type:'date'},
-    {k:'intitule', label:'Intitulé', type:'text'},
-    {k:'duree_min', label:'Durée (min)', type:'number', step:'1'},
-    {k:'details', label:'Détails', type:'text'}
+    {k:'poste', label:'Poste', type:'text'},
+    {k:'temps_jeu_min', label:'Temps de jeu (min)', type:'number', step:'1'},
+    {k:'intensite', label:'Intensité (1-10)', type:'number', min:'1', max:'10', step:'1'}
+  ]},
+  {id:'Basketball', fields:[
+    {k:'date', label:'Date', type:'date'},
+    {k:'poste', label:'Poste', type:'text'},
+    {k:'temps_jeu_min', label:'Temps de jeu (min)', type:'number', step:'1'},
+    {k:'intensite', label:'Intensité (1-10)', type:'number', min:'1', max:'10', step:'1'}
+  ]},
+  {id:'Handball', fields:[
+    {k:'date', label:'Date', type:'date'},
+    {k:'poste', label:'Poste', type:'text'},
+    {k:'temps_jeu_min', label:'Temps de jeu (min)', type:'number', step:'1'},
+    {k:'intensite', label:'Intensité (1-10)', type:'number', min:'1', max:'10', step:'1'}
+  ]},
+  {id:'Badminton', fields:[
+    {k:'date', label:'Date', type:'date'},
+    {k:'format', label:'Format (simple/double)', type:'text'},
+    {k:'sets', label:'Nombre de sets', type:'number', step:'1'},
+    {k:'intensite', label:'Intensité (1-10)', type:'number', min:'1', max:'10', step:'1'}
+  ]},
+  {id:'Musculation step', fields:[
+    {k:'date', label:'Date', type:'date'},
+    {k:'exercice', label:'Exercice', type:'text'},
+    {k:'series', label:'Séries', type:'number', step:'1'},
+    {k:'reps', label:'Répétitions', type:'number', step:'1'},
+    {k:'charge_kg', label:'Charge (kg)', type:'number', step:'0.5'},
+    {k:'rpe', label:'RPE (1-10)', type:'number', min:'1', max:'10', step:'1'}
   ]}
 ];
-ACTIVITES.forEach(a=>{ const tile = h('button',{class:'tile', type:'button', onClick:()=>openForm(a)},[ h('div',{class:'name'},a.id), h('div',{class:'sub'},'Saisir une séance') ]); activitiesEl.appendChild(tile); });
-function checkIdentite(){ const e=gpGet(GP_KEYS.eleve,null); if(!e||!e.nom||!e.prenom||!e.classe||!e.sexe){ alert("Renseigne ton identité d'abord."); show('identite'); return false; } return true; }
-function openForm(act){ if(!checkIdentite()) return; actTitle.textContent=act.id; fields.innerHTML=''; act.fields.forEach(f=>{ const wrap=h('div',{},[h('div',{class:'label'},f.label)]); const input=h('input',{class:'input', id:f.k, type:f.type||'text'}); if(f.step) input.step=f.step; if(f.min) input.min=f.min; if(f.max) input.max=f.max; if(f.type==='date' && !input.value) input.valueAsDate=new Date(); wrap.appendChild(input); fields.appendChild(wrap); }); notes.value=''; form.style.display='block'; window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'}); }
-btnSave?.addEventListener('click', ()=>{ const title=actTitle.textContent||''; if(!title) return alert('Choisis une activité.'); const act=ACTIVITES.find(a=>a.id===title); if(!act) return alert('Choisis une activité.'); const champs={}; act.fields.forEach(f=>{ const el=document.getElementById(f.k); if(!el) return; const v=el.value; if(v!==''&&v!==undefined) champs[f.k] = (f.type==='number'? Number(v):v); }); const s=makeSeance(gpGet(GP_KEYS.eleve,{}), title, champs, (document.getElementById('notes').value||'')); gpSet(GP_KEYS.derniereSeance, s); const all=gpGet(GP_KEYS.seances,[]); all.push(s); gpSet(GP_KEYS.seances, all); alert('✅ Séance enregistrée.'); });
+ACTIVITES.forEach(a=>{
+  const tile = h('button',{class:'tile', type:'button', onClick:()=>openForm(a)},[
+    h('div',{class:'name'},a.id), h('div',{class:'sub'},'Saisir une séance')
+  ]);
+  activitiesEl.appendChild(tile);
+});
 
-// --- calendar ---
+function openForm(act){
+  actTitle.textContent=act.id; fields.innerHTML='';
+  act.fields.forEach(f=>{
+    const wrap=h('div',{},[h('div',{class:'label'},f.label)]);
+    const input=h('input',{class:'input', id:f.k, type:f.type||'text'});
+    if(f.step) input.step=f.step; if(f.min) input.min=f.min; if(f.max) input.max=f.max;
+    if(f.type==='date' && !input.value) input.valueAsDate=new Date();
+    wrap.appendChild(input); fields.appendChild(wrap);
+  });
+  notes.value=''; form.style.display='block'; window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
+}
+
+btnSave?.addEventListener('click', ()=>{
+  if(!identityOk()) return alert("Complète d'abord l'identité (Nom, Prénom, Classe, Sexe).");
+  const title=actTitle.textContent||'';
+  if(!title) return alert('Choisis une activité.');
+  const act=ACTIVITES.find(a=>a.id===title); if(!act) return alert('Choisis une activité.');
+  const champs={};
+  act.fields.forEach(f=>{ const el=document.getElementById(f.k); if(!el) return; const v=el.value; if(v!==''&&v!==undefined) champs[f.k] = (f.type==='number'? Number(v):v); });
+  const s=makeSeance(gpGet(GP_KEYS.eleve,{}), title, champs, (document.getElementById('notes').value||''));
+  gpSet(GP_KEYS.derniereSeance, s);
+  const all=gpGet(GP_KEYS.seances,[]); all.push(s); gpSet(GP_KEYS.seances, all);
+  alert('✅ Séance enregistrée.');
+});
+
+// --- calendar (start at Sept 1, 2025) ---
 const cal=document.getElementById('calendar'); const list=document.getElementById('list'); const mo=document.getElementById('mo');
-let cur=new Date(); cur.setDate(1);
+let cur=new Date('2025-09-01'); cur.setDate(1);
 document.getElementById('prev')?.addEventListener('click', ()=>{cur.setMonth(cur.getMonth()-1);renderCal();});
 document.getElementById('next')?.addEventListener('click', ()=>{cur.setMonth(cur.getMonth()+1);renderCal();});
 function renderCal(){ if(!cal) return; mo.textContent=cur.toLocaleDateString('fr-FR',{month:'long',year:'numeric'}); const y=cur.getFullYear(), m=cur.getMonth(); const first=(new Date(y,m,1).getDay()||7); const days=new Date(y,m+1,0).getDate(); const seances=gpGet(GP_KEYS.seances,[]); const byDate={}; seances.forEach(s=>{ const d=(s.seance?.date||'').slice(0,10); (byDate[d]=byDate[d]||[]).push(s); }); const grid=document.createElement('div'); grid.className='calendar'; ['L','M','M','J','V','S','D'].forEach(h=>{ const hd=document.createElement('div'); hd.className='day'; hd.style.background='transparent'; hd.style.border='none'; hd.textContent=h; grid.appendChild(hd); }); for(let i=0;i<(first===1?0:first-1);i++){ const d=document.createElement('div'); d.className='day'; d.style.visibility='hidden'; grid.appendChild(d); } for(let d=1; d<=days; d++){ const dateStr=new Date(y,m,d).toISOString().slice(0,10); const cell=document.createElement('div'); cell.className='day'; const top=document.createElement('div'); top.className='d'; top.textContent=d; cell.appendChild(top); if(byDate[dateStr]?.length){ const dot=document.createElement('span'); dot.className='badge-dot'; dot.title=byDate[dateStr].length+' séance(s)'; cell.appendChild(dot); cell.style.cursor='pointer'; cell.onclick=()=>showList(dateStr,byDate[dateStr]); } grid.appendChild(cell); } cal.innerHTML=''; cal.appendChild(grid); list.innerHTML='<div class="sub">Sélectionne un jour.</div>'; }
@@ -224,7 +312,7 @@ function download(name, text, mime='text/plain'){ const blob=new Blob([text],{ty
 document.getElementById('contrast')?.addEventListener('click',()=> document.body.classList.toggle('contrast-dark'));
 document.getElementById('png')?.addEventListener('click',()=>{ const c=document.querySelector('#qrcode canvas'); if(!c) return alert('QR non disponible.'); const a=document.createElement('a'); a.download='qr.png'; a.href=c.toDataURL('image/png'); a.click(); });
 document.getElementById('csv-last')?.addEventListener('click',()=>{ const s=gpGet(GP_KEYS.derniereSeance,null); if(!s) return alert('Aucune séance.'); const flat=flattenSeance(s); download('seance.csv', toCSVRow(flat), 'text/csv'); });
-document.getElementById('csv-all')?.addEventListener('click',()=>{ const arr=gpGet(GP_KEYS.seances,[]).map(flattenSeance); if(!arr.length) return alert('Aucune séance.'); const headers=[...new Set(arr.flatMap(o=>Object.keys(o)))]; const rows=arr.map(o=> headers.map(h=>{ const v=String(o[h]??''); return /[",\\n]/.test(v)? '"'+v.replace(/"/g,'""')+'"' : v; }).join(',')).join('\\n'); download('seances.csv', headers.join(',')+'\\n'+rows, 'text/csv'); });
+document.getElementById('csv-all')?.addEventListener('click',()=>{ const arr=gpGet(GP_KEYS.seances,[]).map(flattenSeance); if(!arr.length) return alert('Aucune séance.'); const headers=[...new Set(arr.flatMap(o=>Object.keys(o)))]; const rows=arr.map(o=> headers.map(h=>{ const v=String(o[h]??''); return /[",\n]/.test(v)? '"'+v.replace(/"/g,'""')+'"' : v; }).join(',')).join('\\n'); download('seances.csv', headers.join(',')+'\\n'+rows, 'text/csv'); });
 document.getElementById('json-all')?.addEventListener('click',()=> download('seances.json', JSON.stringify(gpGet(GP_KEYS.seances,[]), null, 2), 'application/json'));
 
 // --- QR ---
