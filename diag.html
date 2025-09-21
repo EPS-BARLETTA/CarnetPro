@@ -1,0 +1,61 @@
+<!doctype html><html lang="fr"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Diag CarnetPro</title>
+<style>
+body{font-family:system-ui;margin:0;background:#0b1324;color:#fff}
+.main{max-width:900px;margin:0 auto;padding:16px}
+.card{background:#111827;border:1px solid #374151;border-radius:12px;padding:16px;margin:12px 0}
+h1{margin:0 0 8px 0}
+pre{background:#000;padding:12px;border-radius:8px;overflow:auto;color:#0f0;max-height:50vh}
+.btn{padding:10px 12px;border-radius:10px;border:0;background:#2563eb;color:#fff;cursor:pointer;font-weight:800}
+</style>
+<div class="main">
+  <h1>Diagnostic CarnetPro</h1>
+  <div class="card">
+    <button class="btn" id="run">Exécuter les tests</button>
+    <pre id="out">Clique sur "Exécuter les tests"…</pre>
+  </div>
+  <div class="card">
+    <h3>Test JS / localStorage</h3>
+    <button class="btn" id="js">Créer une entrée test</button>
+    <pre id="jsout">—</pre>
+  </div>
+</div>
+<script>
+async function diag(){
+  const lines=[];
+  lines.push('URL: '+location.href);
+  lines.push('UserAgent: '+navigator.userAgent);
+  lines.push('Cookies enabled: '+navigator.cookieEnabled);
+  try{ lines.push('localStorage ok: '+(typeof localStorage!=='undefined')); }catch(e){ lines.push('localStorage error: '+e); }
+  if('serviceWorker' in navigator){
+    try{
+      const regs = await navigator.serviceWorker.getRegistrations();
+      lines.push('SW registrations: '+regs.length);
+      regs.forEach(r=> lines.push(' - scope: '+r.scope));
+    }catch(e){ lines.push('SW query error: '+e); }
+  } else { lines.push('ServiceWorker not supported'); }
+  if('caches' in window){
+    try{
+      const keys = await caches.keys();
+      lines.push('CacheStorage keys: '+JSON.stringify(keys));
+    }catch(e){ lines.push('caches.keys error: '+e); }
+  } else { lines.push('CacheStorage not supported'); }
+  try{
+    const keys=[]; for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); keys.push(k); }
+    lines.push('localStorage keys: '+JSON.stringify(keys));
+  }catch(e){ lines.push('localStorage list error: '+e); }
+  document.getElementById('out').textContent = lines.join('\n');
+}
+document.getElementById('run').onclick = diag;
+document.getElementById('js').onclick = ()=>{
+  try{
+    const s = {when: new Date().toISOString(), hello:'world', rnd: Math.random()};
+    localStorage.setItem('diag_test', JSON.stringify(s));
+    const got = JSON.parse(localStorage.getItem('diag_test')||'null');
+    document.getElementById('jsout').textContent = JSON.stringify(got, null, 2);
+  }catch(e){
+    document.getElementById('jsout').textContent = 'Erreur JS: '+(e?.message||e);
+  }
+};
+</script>
