@@ -1,12 +1,13 @@
 <!DOCTYPE html><html lang="fr"><head>
 <meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>CarnetPro — Séance</title>
+<title>CarnetPro — Séance (Hotfix)</title>
 <link rel="stylesheet" href="style.css"></head><body>
 <div class="container">
   <div class="header">
     <div><div class="h1">Nouvelle séance</div><div class="sub">Choisis une activité puis saisis</div></div>
     <a class="button" href="index.html">Accueil</a>
   </div>
+  <div id="msg" class="card" style="display:none"></div>
   <div class="card grid" id="activities" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))"></div>
   <div class="card" id="form" style="display:none">
     <div class="h1" id="actTitle">Séance</div>
@@ -19,5 +20,15 @@
     </div>
   </div>
 </div>
-<script type="module" src="app.js"></script>
+<script type="module">
+const msg = document.getElementById('msg');
+function info(t){ msg.style.display='block'; msg.innerHTML = '<div class="sub">'+t+'</div>'; }
+try {
+  const m = await import('./app.js');
+  info('✅ Modules chargés.');
+} catch(e){
+  info('❌ Impossible de charger app.js — vérifie que <code>app.js</code> existe à la racine. Détail: '+(e?.message||e)+')');
+  console.error(e);
+}
+</script>
 </body></html>

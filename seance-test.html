@@ -1,0 +1,30 @@
+<!doctype html><html lang="fr"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CarnetPro — Test JS</title>
+<style>
+body{font-family:system-ui;padding:16px;background:#f6f7fb;color:#111}
+.card{border:1px solid #e5e7eb;border-radius:12px;background:#fff;padding:16px;max-width:720px}
+.btn{padding:10px 14px;border:1px solid #ddd;border-radius:10px;background:#2563eb;color:#fff;font-weight:700;cursor:pointer}
+.badge{display:inline-block;border:1px solid #ddd;border-radius:999px;padding:6px 10px;font-size:12px;background:#fff;margin-left:8px}
+pre{background:#111;color:#0f0;padding:12px;border-radius:8px;overflow:auto}
+</style>
+<div class="card">
+  <h1>Test JavaScript / Modules</h1>
+  <p>Ce fichier est autonome (pas de dépendances). S'il affiche l'heure et te laisse enregistrer une "séance", ton navigateur/Pages exécutent bien le JavaScript.</p>
+  <button id="btn" class="btn">Enregistrer séance test</button>
+  <span id="status" class="badge">—</span>
+  <h3>Heure locale</h3>
+  <div id="now"></div>
+  <h3>localStorage</h3>
+  <pre id="dump">{}</pre>
+</div>
+<script>
+const now = new Date();
+document.getElementById('now').textContent = now.toString();
+document.getElementById('btn').onclick = ()=>{
+  const s = { app:'CarnetPro', version:'1.0', eleve:{nom:'Test',prenom:'JS'}, seance:{date: new Date().toISOString().slice(0,10), activite:'Test', champs:{}, notes:'OK'} };
+  localStorage.setItem('derniereSeance', JSON.stringify(s));
+  const all = JSON.parse(localStorage.getItem('seances')||'[]'); all.push(s); localStorage.setItem('seances', JSON.stringify(all));
+  document.getElementById('status').textContent='✅ Enregistré';
+  document.getElementById('dump').textContent = JSON.stringify({derniereSeance: s, seances: all.length}, null, 2);
+};
+</script>
