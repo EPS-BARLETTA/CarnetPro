@@ -5,7 +5,7 @@
 :root{--border:#e5e7eb;--ink:#0b1324;--muted:#475569;--green:#16a34a}
 *{box-sizing:border-box} body{font-family:system-ui;margin:0;background:#f8fafc;color:var(--ink)}
 .main{max-width:980px;margin:0 auto;padding:16px}
-.h1{font-size:24px;font-weight:800} .sub{color:var(--muted)}
+.h1{font-size:24px;font-weight:800} .sub{color:#475569}
 .card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px;margin-top:12px}
 .grid{display:grid;gap:10px} .two{grid-template-columns:1fr 1fr}
 .grid-tiles{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin:12px 0}
@@ -14,15 +14,21 @@
 .input{width:100%;padding:10px;border:1px solid var(--border);border-radius:10px}
 .label{font-size:12px;color:#475569;margin-bottom:6px}
 .btn{padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:#fff;font-weight:700;cursor:pointer}
-.btn.ok{background:var(--green);border-color:var(--green);color:#fff}
+.btn.ok{background:#16a34a;border-color:#16a34a;color:#fff}
 .badge{display:inline-block;border:1px solid var(--border);border-radius:999px;padding:6px 10px;font-size:12px;background:#fff}
 a.back{display:inline-block;margin-top:8px}
+#diag{font-size:12px;color:#475569}
 </style>
 </head><body>
 <div class="main">
   <a class="back" href="index.html">← Retour accueil</a>
   <div class="h1">Séance (autonome)</div>
-  <div class="sub">Clique une activité, remplis le formulaire, puis “Enregistrer”.</div>
+  <div class="sub">Clique une activité, remplis le formulaire, puis “Enregistrer”. Aucun import externe.</div>
+
+  <!-- Petit diagnostic visible -->
+  <div id="diag" class="sub">JS: OK • localStorage: <span id="stor">?</span></div>
+
+  <!-- Identité -->
   <div class="card two">
     <div><div class="label">Nom</div><input id="nom" class="input" placeholder="DURAND"></div>
     <div><div class="label">Prénom</div><input id="prenom" class="input" placeholder="Lina"></div>
@@ -32,7 +38,11 @@ a.back{display:inline-block;margin-top:8px}
     </div>
   </div>
   <div style="margin-top:8px"><span id="st" class="badge">⏳ Identité incomplète</span></div>
+
+  <!-- Tuiles -->
   <div id="tiles" class="grid-tiles"></div>
+
+  <!-- Formulaire -->
   <div id="form" class="card" style="display:none">
     <div class="h1" id="actTitle">Séance</div>
     <div id="fields" class="grid two"></div>
@@ -41,10 +51,17 @@ a.back{display:inline-block;margin-top:8px}
     <div style="margin-top:10px"><button id="save" class="btn ok">Enregistrer</button></div>
   </div>
 </div>
+
 <script>
+// — Mini diag
+document.getElementById('stor').textContent = (function(){ try{localStorage.setItem('_t','1');localStorage.removeItem('_t');return 'OK'}catch(e){return 'BLOQUÉ'} })();
+
+// — Helpers storage
 function gpGet(k,f=null){ try{const v=localStorage.getItem(k);return v?JSON.parse(v):f}catch(e){return f} }
 function gpSet(k,v){ localStorage.setItem(k,JSON.stringify(v)) }
 const KEYS={eleve:'eleve',seances:'seances',der:'derniereSeance'};
+
+// — Identité
 const st=document.getElementById('st'), nom=document.getElementById('nom'), prenom=document.getElementById('prenom'), classe=document.getElementById('classe'), sexe=document.getElementById('sexe');
 function idObj(){ return {nom:nom.value.trim(), prenom:prenom.value.trim(), classe:classe.value.trim(), sexe:sexe.value.trim()}; }
 function idOk(o){ return o.nom&&o.prenom&&o.classe&&o.sexe; }
@@ -52,6 +69,8 @@ function updateId(){ const o=idObj(); gpSet(KEYS.eleve,o); st.textContent = idOk
 [nom,prenom,classe,sexe].forEach(el=> el.addEventListener('input', updateId));
 const saved=gpGet(KEYS.eleve,{}); if(saved){ nom.value=saved.nom||''; prenom.value=saved.prenom||''; classe.value=saved.classe||''; sexe.value=saved.sexe||''; }
 updateId();
+
+// — Activités
 const ACTIV=[
   {id:'Demi-fond', f:[{k:'date',t:'date',l:'Date'},{k:'duree_min',t:'number',l:'Durée (min)'},{k:'distance_km',t:'number',l:'Distance (km)'},{k:'allure_sec_km',t:'number',l:'Allure (sec/km)'},{k:'rpe',t:'number',l:'RPE (1-10)'}]},
   {id:'Natation', f:[{k:'date',t:'date',l:'Date'},{k:'nage',t:'text',l:'Nage'},{k:'distance_m',t:'number',l:'Distance (m)'},{k:'temps_sec',t:'number',l:'Temps (sec)'},{k:'rpe',t:'number',l:'RPE (1-10)'}]},
@@ -64,9 +83,12 @@ const ACTIV=[
   {id:'Badminton', f:[{k:'date',t:'date',l:'Date'},{k:'format',t:'text',l:'Format (simple/double)'},{k:'sets',t:'number',l:'Sets'},{k:'intensite',t:'number',l:'Intensité (1-10)'}]},
   {id:'Musculation step', f:[{k:'date',t:'date',l:'Date'},{k:'exercice',t:'text',l:'Exercice'},{k:'series',t:'number',l:'Séries'},{k:'reps',t:'number',l:'Répétitions'},{k:'charge_kg',t:'number',l:'Charge (kg)'},{k:'rpe',t:'number',l:'RPE (1-10)'}]}
 ];
+
+// — Tuiles + formulaire
 const tiles=document.getElementById('tiles'), form=document.getElementById('form'), fields=document.getElementById('fields'), actTitle=document.getElementById('actTitle'), notes=document.getElementById('notes');
 let current=null;
 ACTIV.forEach(a=>{ const b=document.createElement('button'); b.className='tile'; b.type='button'; b.textContent=a.id; b.onclick=()=>openForm(a); tiles.appendChild(b); });
+
 function openForm(a){
   current=a; actTitle.textContent=a.id; fields.innerHTML='';
   a.f.forEach(f=>{
@@ -77,6 +99,7 @@ function openForm(a){
   });
   notes.value=''; form.style.display='block'; window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
 }
+
 document.getElementById('save').onclick=()=>{
   if(!current) return alert('Choisis une activité.');
   const e=gpGet(KEYS.eleve,null);
