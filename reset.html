@@ -10,7 +10,7 @@ a.btn{display:inline-block;text-decoration:none}
 </style>
 <div class="card">
   <h1>Nettoyage CarnetPro</h1>
-  <p>Ce script supprime <strong>tous les caches</strong>, <strong>désinstalle les Service Workers</strong> et vide <strong>localStorage</strong> pour <code>eps-barletta.github.io</code> (scope <code>/CarnetPro/</code>).</p>
+  <p>Supprime <strong>caches</strong>, <strong>Service Workers</strong> et <strong>localStorage</strong>.</p>
   <button class="btn" id="go">Lancer le nettoyage</button>
   <p id="res"></p>
   <pre id="log"></pre>
@@ -31,7 +31,7 @@ document.getElementById('go').onclick = async ()=>{
     }
     localStorage.clear();
     sessionStorage.clear();
-    res.textContent = '✅ Terminé. Rafraîchis la page d\\'accueil si besoin.';
+    res.textContent = '✅ Terminé. Recharge la page.';
   }catch(e){
     res.textContent = '❌ Erreur: '+(e?.message||e);
   }
