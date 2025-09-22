@@ -1,9 +1,9 @@
 <!doctype html><html lang="fr"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>CarnetPro — Séance (hotfix)</title>
+<title>CarnetPro — Séance (autonome)</title>
 <style>
 :root{--border:#e5e7eb;--ink:#0b1324;--muted:#475569;--green:#16a34a}
-body{font-family:system-ui;margin:0;background:#f8fafc;color:var(--ink)}
+*{box-sizing:border-box} body{font-family:system-ui;margin:0;background:#f8fafc;color:var(--ink)}
 .main{max-width:980px;margin:0 auto;padding:16px}
 .h1{font-size:24px;font-weight:800} .sub{color:var(--muted)}
 .card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px;margin-top:12px}
@@ -21,9 +21,8 @@ a.back{display:inline-block;margin-top:8px}
 </head><body>
 <div class="main">
   <a class="back" href="index.html">← Retour accueil</a>
-  <div class="h1">Séance (hotfix autonome)</div>
+  <div class="h1">Séance (autonome)</div>
   <div class="sub">Clique une activité, remplis le formulaire, puis “Enregistrer”.</div>
-
   <div class="card two">
     <div><div class="label">Nom</div><input id="nom" class="input" placeholder="DURAND"></div>
     <div><div class="label">Prénom</div><input id="prenom" class="input" placeholder="Lina"></div>
@@ -33,9 +32,7 @@ a.back{display:inline-block;margin-top:8px}
     </div>
   </div>
   <div style="margin-top:8px"><span id="st" class="badge">⏳ Identité incomplète</span></div>
-
   <div id="tiles" class="grid-tiles"></div>
-
   <div id="form" class="card" style="display:none">
     <div class="h1" id="actTitle">Séance</div>
     <div id="fields" class="grid two"></div>
@@ -44,20 +41,17 @@ a.back{display:inline-block;margin-top:8px}
     <div style="margin-top:10px"><button id="save" class="btn ok">Enregistrer</button></div>
   </div>
 </div>
-
 <script>
-// no imports, no modules, no service worker registration — fully inline
 function gpGet(k,f=null){ try{const v=localStorage.getItem(k);return v?JSON.parse(v):f}catch(e){return f} }
 function gpSet(k,v){ localStorage.setItem(k,JSON.stringify(v)) }
 const KEYS={eleve:'eleve',seances:'seances',der:'derniereSeance'};
+const st=document.getElementById('st'), nom=document.getElementById('nom'), prenom=document.getElementById('prenom'), classe=document.getElementById('classe'), sexe=document.getElementById('sexe');
 function idObj(){ return {nom:nom.value.trim(), prenom:prenom.value.trim(), classe:classe.value.trim(), sexe:sexe.value.trim()}; }
 function idOk(o){ return o.nom&&o.prenom&&o.classe&&o.sexe; }
 function updateId(){ const o=idObj(); gpSet(KEYS.eleve,o); st.textContent = idOk(o)? '✅ Identité enregistrée':'⏳ Identité incomplète'; }
-const st=document.getElementById('st'), nom=document.getElementById('nom'), prenom=document.getElementById('prenom'), classe=document.getElementById('classe'), sexe=document.getElementById('sexe');
 [nom,prenom,classe,sexe].forEach(el=> el.addEventListener('input', updateId));
 const saved=gpGet(KEYS.eleve,{}); if(saved){ nom.value=saved.nom||''; prenom.value=saved.prenom||''; classe.value=saved.classe||''; sexe.value=saved.sexe||''; }
 updateId();
-
 const ACTIV=[
   {id:'Demi-fond', f:[{k:'date',t:'date',l:'Date'},{k:'duree_min',t:'number',l:'Durée (min)'},{k:'distance_km',t:'number',l:'Distance (km)'},{k:'allure_sec_km',t:'number',l:'Allure (sec/km)'},{k:'rpe',t:'number',l:'RPE (1-10)'}]},
   {id:'Natation', f:[{k:'date',t:'date',l:'Date'},{k:'nage',t:'text',l:'Nage'},{k:'distance_m',t:'number',l:'Distance (m)'},{k:'temps_sec',t:'number',l:'Temps (sec)'},{k:'rpe',t:'number',l:'RPE (1-10)'}]},
@@ -67,13 +61,31 @@ const ACTIV=[
   {id:'Volleyball', f:[{k:'date',t:'date',l:'Date'},{k:'poste',t:'text',l:'Poste'},{k:'temps_jeu_min',t:'number',l:'Temps de jeu (min)'},{k:'intensite',t:'number',l:'Intensité (1-10)'}]},
   {id:'Basketball', f:[{k:'date',t:'date',l:'Date'},{k:'poste',t:'text',l:'Poste'},{k:'temps_jeu_min',t:'number',l:'Temps de jeu (min)'},{k:'intensite',t:'number',l:'Intensité (1-10)'}]},
   {id:'Handball', f:[{k:'date',t:'date',l:'Date'},{k:'poste',t:'text',l:'Poste'},{k:'temps_jeu_min',t:'number',l:'Temps de jeu (min)'},{k:'intensite',t:'number',l:'Intensité (1-10)'}]},
-  {id:'Badminton', f:[{k:'date',t:'date',l:'Date'},{k:'format',t:'text',l:'Format'},{k:'sets',t:'number',l:'Sets'},{k:'intensite',t:'number',l:'Intensité (1-10)'}]},
+  {id:'Badminton', f:[{k:'date',t:'date',l:'Date'},{k:'format',t:'text',l:'Format (simple/double)'},{k:'sets',t:'number',l:'Sets'},{k:'intensite',t:'number',l:'Intensité (1-10)'}]},
   {id:'Musculation step', f:[{k:'date',t:'date',l:'Date'},{k:'exercice',t:'text',l:'Exercice'},{k:'series',t:'number',l:'Séries'},{k:'reps',t:'number',l:'Répétitions'},{k:'charge_kg',t:'number',l:'Charge (kg)'},{k:'rpe',t:'number',l:'RPE (1-10)'}]}
 ];
 const tiles=document.getElementById('tiles'), form=document.getElementById('form'), fields=document.getElementById('fields'), actTitle=document.getElementById('actTitle'), notes=document.getElementById('notes');
 let current=null;
 ACTIV.forEach(a=>{ const b=document.createElement('button'); b.className='tile'; b.type='button'; b.textContent=a.id; b.onclick=()=>openForm(a); tiles.appendChild(b); });
-function openForm(a){ current=a; actTitle.textContent=a.id; fields.innerHTML=''; a.f.forEach(f=>{ const wrap=document.createElement('div'); const lab=document.createElement('div'); lab.className='label'; lab.textContent=f.l; const input=document.createElement('input'); input.className='input'; input.type=f.t; input.id=f.k; if(f.t==='date'&&!input.value) input.valueAsDate=new Date(); wrap.appendChild(lab); wrap.appendChild(input); fields.appendChild(wrap); }); notes.value=''; form.style.display='block'; window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'}); }
-document.getElementById('save').onclick=()=>{ if(!current) return alert('Choisis une activité.'); const e=gpGet(KEYS.eleve,null); if(!e||!e.nom||!e.prenom||!e.classe||!e.sexe) return alert("Complète l'identité ci-dessus."); const champs={}; current.f.forEach(f=>{ const el=document.getElementById(f.k); if(!el) return; const v=el.value; if(v!==''&&v!==undefined) champs[f.k] = (f.t==='number'? Number(v):v); }); const s={app:'CarnetPro',version:'1.0',eleve:e,seance:{date:champs.date||new Date().toISOString().slice(0,10),activite:current.id,champs,notes:notes.value||''}}; gpSet(KEYS.der, s); const all=gpGet(KEYS.seances,[]); all.push(s); gpSet(KEYS.seances, all); alert('✅ Séance enregistrée.'); };
+function openForm(a){
+  current=a; actTitle.textContent=a.id; fields.innerHTML='';
+  a.f.forEach(f=>{
+    const wrap=document.createElement('div'); const lab=document.createElement('div'); lab.className='label'; lab.textContent=f.l;
+    const input=document.createElement('input'); input.className='input'; input.type=f.t; input.id=f.k;
+    if(f.t==='date'&&!input.value) input.valueAsDate=new Date();
+    wrap.appendChild(lab); wrap.appendChild(input); fields.appendChild(wrap);
+  });
+  notes.value=''; form.style.display='block'; window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
+}
+document.getElementById('save').onclick=()=>{
+  if(!current) return alert('Choisis une activité.');
+  const e=gpGet(KEYS.eleve,null);
+  if(!e||!e.nom||!e.prenom||!e.classe||!e.sexe) return alert("Complète d'abord l'identité.");
+  const champs={};
+  current.f.forEach(f=>{ const el=document.getElementById(f.k); if(!el) return; const v=el.value; if(v!==''&&v!==undefined) champs[f.k]=(f.t==='number'?Number(v):v); });
+  const s={app:'CarnetPro',version:'1.0',eleve:e,seance:{date:champs.date||new Date().toISOString().slice(0,10),activite:current.id,champs,notes:notes.value||''}};
+  gpSet(KEYS.der, s); const all=gpGet(KEYS.seances,[]); all.push(s); gpSet(KEYS.seances, all);
+  alert('✅ Séance enregistrée.');
+};
 </script>
 </body></html>
