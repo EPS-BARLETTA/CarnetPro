@@ -10,11 +10,11 @@ a.btn{display:inline-block;text-decoration:none}
 </style>
 <div class="card">
   <h1>Nettoyage CarnetPro</h1>
-  <p>Supprime <strong>caches</strong>, <strong>Service Workers</strong> et <strong>localStorage</strong>.</p>
+  <p>Supprime <strong>caches</strong>, <strong>Service Workers</strong> et <strong>localStorage</strong> de ce site.</p>
   <button class="btn" id="go">Lancer le nettoyage</button>
   <p id="res"></p>
   <pre id="log"></pre>
-  <p><a class="btn" href="index.html">Retour à l'accueil</a></p>
+  <p><a class="btn" href="seance.html">→ Aller à la page Séance</a></p>
 </div>
 <script>
 const log = (m)=>{ const el=document.getElementById('log'); el.textContent += m + "\\n"; }
@@ -29,9 +29,8 @@ document.getElementById('go').onclick = async ()=>{
       const names = await caches.keys();
       for(const n of names){ log('Delete cache: '+n); await caches.delete(n); }
     }
-    localStorage.clear();
-    sessionStorage.clear();
-    res.textContent = '✅ Terminé. Recharge la page.';
+    localStorage.clear(); sessionStorage.clear();
+    res.textContent = '✅ Terminé. Ouvre maintenant seance.html';
   }catch(e){
     res.textContent = '❌ Erreur: '+(e?.message||e);
   }
