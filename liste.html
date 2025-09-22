@@ -1,0 +1,169 @@
+<!doctype html><html lang="fr"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CarnetPro — Liste des séances</title>
+<style>
+:root{--border:#e5e7eb;--ink:#0b1324;--muted:#475569;--blue:#2563eb;--red:#dc2626}
+*{box-sizing:border-box} body{font-family:system-ui;margin:0;background:#f8fafc;color:var(--ink)}
+.main{max-width:1100px;margin:0 auto;padding:16px}
+.h1{font-size:24px;font-weight:800} .sub{color:var(--muted)}
+.card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px;margin-top:12px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.input{padding:10px;border:1px solid var(--border);border-radius:10px}
+.btn{padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:#fff;font-weight:700;cursor:pointer}
+.btn.red{background:#fee2e2;border-color:#fecaca;color:#991b1b}
+.btn.blue{background:#dbeafe;border-color:#bfdbfe}
+.table{width:100%;border-collapse:collapse}
+.table th,.table td{border-bottom:1px solid var(--border);padding:8px;text-align:left;font-size:14px;vertical-align:top}
+.badge{display:inline-block;border:1px solid var(--border);border-radius:999px;padding:4px 8px;font-size:12px;background:#fff}
+a.link{color:#2563eb;text-decoration:none}
+</style>
+</head><body>
+<div class="main">
+  <div class="h1">Liste des séances</div>
+  <div class="sub">Filtrer, exporter, supprimer. Les données viennent de <code>localStorage</code> (clé <code>seances</code>).</div>
+
+  <div class="card row">
+    <a class="link" href="index.html">← Accueil</a>
+    <a class="link" href="seance.html">+ Nouvelle séance</a>
+    <span class="badge" id="count">—</span>
+  </div>
+
+  <div class="card">
+    <div class="row" style="margin-bottom:10px">
+      <input id="q" class="input" placeholder="Rechercher (activité, notes, nom, etc.)">
+      <input id="from" class="input" type="date" title="Du">
+      <input id="to" class="input" type="date" title="Au">
+      <select id="act" class="input">
+        <option value="">Toutes activités</option>
+        <option>Demi-fond</option><option>Natation</option><option>Escalade</option><option>Danse</option>
+        <option>Football</option><option>Volleyball</option><option>Basketball</option><option>Handball</option>
+        <option>Badminton</option><option>Musculation step</option>
+      </select>
+      <button id="clearFilters" class="btn">Effacer filtres</button>
+      <span style="flex:1"></span>
+      <button id="csv" class="btn blue">Exporter CSV</button>
+      <button id="json" class="btn">Exporter JSON</button>
+      <button id="wipe" class="btn red">Tout effacer</button>
+    </div>
+    <div style="overflow:auto">
+      <table class="table" id="tab">
+        <thead><tr>
+          <th>Date</th><th>Activité</th><th>Élève</th><th>Champs</th><th>Notes</th><th>Actions</th>
+        </tr></thead>
+        <tbody id="tbody"><tr><td colspan="6">—</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+function gpGet(k,f=null){ try{const v=localStorage.getItem(k);return v?JSON.parse(v):f}catch(e){return f} }
+function gpSet(k,v){ localStorage.setItem(k,JSON.stringify(v)) }
+
+const KEYS={SEANCES:'seances'};
+let data = gpGet(KEYS.SEANCES, []);
+
+const q=document.getElementById('q'), from=document.getElementById('from'), to=document.getElementById('to'), act=document.getElementById('act');
+const tbody=document.getElementById('tbody'), count=document.getElementById('count');
+
+function render(){
+  let rows = data.map((s, idx)=> ({s, idx}));
+  const f = q.value.trim().toLowerCase();
+  if(f){
+    rows = rows.filter(({s})=> JSON.stringify(s).toLowerCase().includes(f));
+  }
+  const fa = act.value;
+  if(fa){ rows = rows.filter(({s})=> (s.seance?.activite||'')===fa); }
+  const fd = from.value, td = to.value;
+  if(fd){ rows = rows.filter(({s})=> (s.seance?.date||'') >= fd); }
+  if(td){ rows = rows.filter(({s})=> (s.seance?.date||'') <= td); }
+
+  count.textContent = rows.length+' / '+data.length+' séances';
+  if(!rows.length){ tbody.innerHTML = '<tr><td colspan="6">Aucune séance.</td></tr>'; return; }
+
+  tbody.innerHTML = rows.map(({s, idx})=>{
+    const e = s.eleve||{}; const se = s.seance||{};
+    const champs = Object.entries(se.champs||{}).map(([k,v])=> `<div><strong>${k}</strong>: ${v}</div>`).join('');
+    return `<tr data-i="${idx}">
+      <td><span class="badge">${(se.date||'').slice(0,10)||'—'}</span></td>
+      <td>${se.activite||'—'}</td>
+      <td>${(e.nom||'')+' '+(e.prenom||'')}<br><span class="badge">${e.classe||''}</span> <span class="badge">${e.sexe||''}</span></td>
+      <td>${champs||'—'}</td>
+      <td>${(se.notes||'').replace(/</g,'&lt;')}</td>
+      <td><button class="btn red" onclick="delRow(${idx})">Supprimer</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function delRow(i){
+  if(!confirm('Supprimer cette séance ?')) return;
+  data.splice(i,1);
+  gpSet(KEYS.SEANCES, data);
+  render();
+}
+
+function toCSV(arr){
+  if(!arr.length) return 'Date,Activité,Nom,Prénom,Classe,Sexe,Notes\n';
+  // collect all champs keys
+  const champKeys = Array.from(new Set(arr.flatMap(s=> Object.keys(s.seance?.champs||{}))));
+  const headers = ['Date','Activité','Nom','Prénom','Classe','Sexe',...champKeys,'Notes'];
+  const lines = [headers.join(',')];
+  arr.forEach(s=>{
+    const e=s.eleve||{}, se=s.seance||{}, ch=se.champs||{};
+    const row = [
+      (se.date||''),
+      (se.activite||''),
+      (e.nom||''),
+      (e.prenom||''),
+      (e.classe||''),
+      (e.sexe||''),
+      ...champKeys.map(k=> (ch[k]??'')),
+      (se.notes||'')
+    ].map(v=> {
+      const str=String(v??'');
+      return /[",\n]/.test(str) ? '"'+str.replace(/"/g,'""')+'"' : str;
+    }).join(',');
+    lines.push(row);
+  });
+  return lines.join('\n');
+}
+
+document.getElementById('csv').onclick = ()=>{
+  const csv = toCSV(filteredData());
+  download('seances.csv', csv, 'text/csv');
+};
+document.getElementById('json').onclick = ()=>{
+  download('seances.json', JSON.stringify(filteredData(), null, 2), 'application/json');
+};
+document.getElementById('wipe').onclick = ()=>{
+  if(!confirm('Tout effacer ?')) return;
+  data = [];
+  gpSet(KEYS.SEANCES, data);
+  render();
+};
+document.getElementById('clearFilters').onclick = ()=>{ q.value=''; from.value=''; to.value=''; act.value=''; render(); };
+[q,from,to,act].forEach(el=> el.addEventListener('input', render));
+
+function filteredData(){
+  // replicate filter logic to export only visible subset
+  let rows = data.map(s=>s);
+  const f = q.value.trim().toLowerCase();
+  if(f){ rows = rows.filter(s=> JSON.stringify(s).toLowerCase().includes(f)); }
+  const fa = act.value;
+  if(fa){ rows = rows.filter(s=> (s.seance?.activite||'')===fa); }
+  const fd = from.value, td = to.value;
+  if(fd){ rows = rows.filter(s=> (s.seance?.date||'') >= fd); }
+  if(td){ rows = rows.filter(s=> (s.seance?.date||'') <= td); }
+  return rows;
+}
+
+function download(name, text, mime){
+  const blob=new Blob([text],{type:mime+';charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=name; a.click();
+  URL.revokeObjectURL(url);
+}
+
+render();
+</script>
+</body></html>
